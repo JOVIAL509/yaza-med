@@ -1,0 +1,22 @@
+{
+  "name": "yaza-med",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "build": "npm run build --prefix client",
+    "test": "node --test server/test/*.test.js",
+    "start": "npm start --prefix server",
+    "start:production": "npm run build && npm start --prefix server"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
