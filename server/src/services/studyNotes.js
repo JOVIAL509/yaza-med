@@ -104,10 +104,12 @@ export async function listStudyNotes({ subject: subjectFilter, query } = {}) {
 export async function createStudyNoteLink(path, download = false) {
   const encodedPath = path.split('/').map(encodeURIComponent).join('/');
   const payload = await storageRequest(`/object/sign/${encodeURIComponent(bucket())}/${encodedPath}`, {
-    method: 'POST', body: JSON.stringify({ expiresIn: 60 * 60, ...(download ? { download: path.split('/').at(-1) } : {}) })
+    method: 'POST', body: JSON.stringify({ expiresIn: 60 * 60 })
   });
   const { url } = supabaseConfig();
   const signed = payload.signedURL || payload.signedUrl;
   if (!signed) throw new Error('Supabase did not return a note link.');
-  return signed.startsWith('http') ? signed : `${url}/storage/v1${signed.startsWith('/') ? '' : '/'}${signed}`;
+  const signedUrl = new URL(signed.startsWith('http') ? signed : `${url}/storage/v1${signed.startsWith('/') ? '' : '/'}${signed}`);
+  if (download) signedUrl.searchParams.set('download', path.split('/').at(-1));
+  return signedUrl.toString();
 }
