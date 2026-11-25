@@ -32,27 +32,6 @@ const dashboardFeatures = [
 ];
 const learningFeatureHref = slug => slug === 'high-yield' ? '/nyani' : `/learn?type=${slug}`;
 const officeDocument = name => /\.(docx?|pptx?|xlsx?)$/i.test(name);
-const notePreviewMimeTypes = {
-  '.csv': 'text/csv',
-  '.gif': 'image/gif',
-  '.jpeg': 'image/jpeg',
-  '.jpg': 'image/jpeg',
-  '.json': 'application/json',
-  '.md': 'text/plain',
-  '.pdf': 'application/pdf',
-  '.png': 'image/png',
-  '.txt': 'text/plain',
-  '.webp': 'image/webp',
-  '.htm': 'text/plain',
-  '.html': 'text/plain'
-};
-const notePreviewMimeType = file => {
-  const extension = file.name.match(/\.[^.]+$/)?.[0].toLowerCase();
-  const inferred = notePreviewMimeTypes[extension];
-  if (inferred) return inferred;
-  const reported = file.contentType?.split(';')[0].toLowerCase();
-  return ['application/pdf', 'application/json', 'image/gif', 'image/jpeg', 'image/png', 'image/webp', 'text/csv', 'text/plain'].includes(reported) ? reported : null;
-};
 
 function authErrorMessage(error, fallback) {
   if (error.apiHint) return error.apiHint;
@@ -333,6 +312,7 @@ function NotesLibrary({user}) {
   const [loadingSubjects,setLoadingSubjects]=useState(true);
   const [loadingNotes,setLoadingNotes]=useState(false);
   const [error,setError]=useState('');
+  const [notice,setNotice]=useState('');
   const [query,setQuery]=useState('');
   const [retryKind,setRetryKind]=useState('');
   const [subjectsRetry,setSubjectsRetry]=useState(0);
@@ -364,36 +344,35 @@ function NotesLibrary({user}) {
     return()=>{live=false;};
   },[selectedSubject,query,notesRetry]);
 
-  const openStorageNote=async(file,download=false)=>{
-    const popup=download?null:window.open('about:blank','_blank');
+  const openStorageNote=async file=>{
+    setError('');
+    setNotice('');
+    const popup=window.open('about:blank','_blank');
     try{
-      const {data}=await api.get('/notes/link',{params:{path:file.path,download:download?'1':'0'}});
-      if(download){
-        const link=document.createElement('a');
-        link.href=data.url;
-        link.rel='noreferrer';
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-      }else{
-        let url;
-        if(officeDocument(file.name)){
-          url=createOfficeViewerUrl(data.url);
-        }else{
-          const mimeType=notePreviewMimeType(file);
-          if(!mimeType)throw new Error('This file type cannot be previewed in the browser. Use Download to open it with a compatible app.');
-          const response=await fetch(data.url);
-          if(!response.ok)throw new Error('Could not load this file for browser preview.');
-          const blob=new Blob([await response.blob()],{type:mimeType});
-          url=URL.createObjectURL(blob);
-          window.setTimeout(()=>URL.revokeObjectURL(url),10*60*1000);
-        }
-        if(popup)popup.location=url;
-        else window.location.assign(url);
-      }
+      const {data}=await api.get('/notes/link',{params:{path:file.path,download:'0'}});
+      const url=officeDocument(file.name)?createOfficeViewerUrl(data.url):data.url;
+      if(popup)popup.location=url;
+      else window.location.assign(url);
     }catch(e){
       popup?.close();
-      setError(e.response?.data?.message||e.message||'Could not open this note.');
+      setError(e.response?.data?.message||'Could not open this note online.');
+    }
+  };
+
+  const downloadStorageNote=async file=>{
+    setError('');
+    setNotice('');
+    try{
+      const {data}=await api.get('/notes/link',{params:{path:file.path,download:'1'}});
+      const link=document.createElement('a');
+      link.href=data.url;
+      link.rel='noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setNotice('Download started. Open the file from your Downloads to choose an installed app.');
+    }catch(e){
+      setError(e.response?.data?.message||'Could not download this note.');
     }
   };
 
@@ -412,7 +391,8 @@ function NotesLibrary({user}) {
       <div className="side-user"><span className="user-avatar">{user.name?.slice(0,1).toUpperCase()}</span><span><b>{user.name}</b><small>Student</small></span></div>
     </aside>
     <section className="workspace-main learn-main">
-      <div className="learn-heading"><div className="eyebrow muted">A GOOD PLACE TO BEGIN</div><h1>{selectedSubject?`${selectedSubject.title} notes`:'Notes library'}<i>.</i></h1><p>{selectedSubject?'Choose a file to view or download.':'Choose a subject to explore its study notes.'}</p></div>
+      <div className="learn-heading"><div className="eyebrow muted">A GOOD PLACE TO BEGIN</div><h1>{selectedSubject?`${selectedSubject.title} notes`:'Notes library'}<i>.</i></h1><p>{selectedSubject?'Choose a file to view online or download.':'Choose a subject to explore its study notes.'}</p></div>
+      {notice&&<div className="success-message" role="status">{notice}</div>}
       {error&&<ErrorNotice message={error} onRetry={retryKind==='subjects'?()=>setSubjectsRetry(value=>value+1):retryKind==='notes'?()=>setNotesRetry(value=>value+1):undefined}/>}
       {!selectedSubject
         ? loadingSubjects?<div className="content-skeleton"><i/><i/><i/></div>
@@ -438,7 +418,7 @@ function NotesLibrary({user}) {
                   <div className="material-card-top"><span className="material-type">{file.contentType?.includes('pdf')||/\.pdf$/i.test(file.name)?'PDF NOTE':'STUDY FILE'}</span><span className="note-topic">{file.topic}</span></div>
                   <h3>{file.name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ')}</h3>
                   <p>{file.path}</p>
-                  <div className="note-actions"><button className="button-outline" onClick={()=>openStorageNote(file)}>View <ArrowRight size={14}/></button><button className="button-primary" onClick={()=>openStorageNote(file,true)}>Download</button></div>
+                  <div className="note-actions"><button className="button-outline" onClick={()=>openStorageNote(file)}>View online</button><button className="button-primary" onClick={()=>downloadStorageNote(file)}>Download</button></div>
                 </article>)}</div>
               : <div className="empty-state"><div className="empty-spark">✳</div><div><b>No notes found for {selectedSubject.title} yet.</b><span>Try another subject, or start with lessons and practice while notes are being added.</span></div><button className="button-outline" onClick={()=>{setSelectedSubject(null);setNoteGroups([]);setError('');setQuery('');}}>Browse subjects <ArrowRight size={18}/></button><Link className="button-outline" to="/learn?type=quick-lesson">Explore lessons <ArrowRight size={18}/></Link></div>}
         </>}
@@ -489,7 +469,7 @@ function Learn({user}) {
   const submit=async()=>{try{const {data}=await api.post('/attempts',{mode:'practice',responses:Object.entries(responses).map(([question,answer])=>({question,answer}))});setResult(data);}catch(e){setError(e.response?.data?.message||'Your answers could not be submitted.');}};
   const bookmark=async item=>{try{await api.post('/bookmarks',{material:item._id,materialType:item.type});setSaved({...saved,[item._id]:true});}catch(e){setError(e.response?.data?.message||'Could not save this item.');}};
   const openItem=async item=>{try{const {data}=await api.get(`/content/${item._id}`);setDetail(data);}catch(e){setError(e.response?.data?.message||'Could not open this learning resource.');}};
-  const openStorageNote=async(file,download=false)=>{const popup=download?null:window.open('about:blank','_blank');try{const {data}=await api.get('/notes/link',{params:{path:file.path,download:download?'1':'0'}});if(download){const link=document.createElement('a');link.href=data.url;link.rel='noreferrer';document.body.appendChild(link);link.click();link.remove();}else {const url=officeDocument(file.name)?createOfficeViewerUrl(data.url):data.url;if(popup)popup.location=url;else window.location.assign(url);}}catch(e){popup?.close();setError(e.response?.data?.message||'Could not open this note.');}};
+  const openStorageNote=async file=>{try{const {data}=await api.get('/notes/link',{params:{path:file.path,download:'1'}});const link=document.createElement('a');link.href=data.url;link.rel='noreferrer';document.body.appendChild(link);link.click();link.remove();}catch(e){setError(e.response?.data?.message||'Could not download this note.');}};
   if(showFeatureDirectory)return <LearningFeatureDirectory user={user}/>;
   if(type==='note')return <NotesLibrary user={user}/>;
   if(type==='ai-quiz')return <AiQuiz user={user}/>;
