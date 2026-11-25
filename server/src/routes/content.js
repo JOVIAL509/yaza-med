@@ -19,8 +19,9 @@ router.get('/subjects', async (_req, res, next) => { try { res.json(await Subjec
 router.get('/content', async (req, res, next) => {
   try {
     const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1), limit = Math.min(30, Math.max(1, Number.parseInt(req.query.limit, 10) || 12));
-    const filter = { status: 'published' };
-    if (['note', 'quick-lesson', 'high-yield'].includes(req.query.type)) filter.type = req.query.type;
+    if (req.query.type === 'quick-lesson') return res.status(410).json({ message: 'Quick lessons are no longer available.' });
+    const filter = { status: 'published', type: { $ne: 'quick-lesson' } };
+    if (['note', 'high-yield'].includes(req.query.type)) filter.type = req.query.type;
     if (req.query.subject) {
       const subject = await Subject.findOne({ $or: [{ _id: req.query.subject.match(/^[0-9a-f]{24}$/i) ? req.query.subject : null }, { slug: String(req.query.subject).toLowerCase() }, { title: new RegExp(`^${String(req.query.subject).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }] }).select('_id').lean();
       if (!subject) return res.json({ items: [], page, pages: 0, total: 0 });
@@ -34,7 +35,7 @@ router.get('/content', async (req, res, next) => {
 });
 router.get('/content/:id', async (req, res, next) => {
   try {
-    const item = await Content.findOne({ _id: req.params.id, status: 'published' }).populate('subject', 'title slug').populate('topic', 'title').lean();
+    const item = await Content.findOne({ _id: req.params.id, status: 'published', type: { $ne: 'quick-lesson' } }).populate('subject', 'title slug').populate('topic', 'title').lean();
     if (!item) return res.status(404).json({ message: 'Learning resource not found.' });
     res.json(item);
   } catch (e) { next(e); }
@@ -59,7 +60,7 @@ router.get('/bookmarks', authenticate, async (req, res, next) => { try { res.jso
 router.post('/bookmarks', authenticate, async (req, res, next) => { try { const { material, materialType } = req.body || {}; if (!material || !['note', 'quick-lesson', 'high-yield'].includes(materialType)) return res.status(400).json({ message: 'Choose a valid learning resource.' }); const item = await Content.findOne({ _id: material, type: materialType, status: 'published' }); if (!item) return res.status(404).json({ message: 'Learning resource not found.' }); const bookmark = await Bookmark.findOneAndUpdate({ student: req.user.id, material, materialType }, {}, { upsert: true, new: true, setDefaultsOnInsert: true }); res.status(201).json(bookmark); } catch (e) { next(e); } });
 router.delete('/bookmarks/:id', authenticate, async (req, res, next) => { try { await Bookmark.deleteOne({ _id: req.params.id, student: req.user.id }); res.status(204).end(); } catch (e) { next(e); } });
 router.get('/admin/content', authenticate, adminOnly, async (req, res, next) => { try { const filter = req.query.status ? { status: req.query.status } : {}; res.json(await Content.find(filter).populate('subject', 'title').sort({ updatedAt: -1 }).lean()); } catch (e) { next(e); } });
-router.post('/admin/content', authenticate, adminOnly, async (req, res, next) => { try { const item = await Content.create({ ...req.body, author: req.user.id }); res.status(201).json(item); } catch (e) { next(e); } });
+router.post('/admin/content', authenticate, adminOnly, async (req, res, next) => { try { if (req.body?.type === 'quick-lesson') return res.status(410).json({ message: 'Quick lessons are no longer available.' }); const item = await Content.create({ ...req.body, author: req.user.id }); res.status(201).json(item); } catch (e) { next(e); } });
 router.patch('/admin/content/:id', authenticate, adminOnly, async (req, res, next) => { try { const item = await Content.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true }); if (!item) return res.status(404).json({ message: 'Content not found.' }); res.json(item); } catch (e) { next(e); } });
 router.delete('/admin/content/:id', authenticate, adminOnly, async (req, res, next) => { try { await Content.findByIdAndDelete(req.params.id); res.status(204).end(); } catch (e) { next(e); } });
 router.get('/admin/topics', authenticate, adminOnly, async (req, res, next) => { try { const filter = req.query.subject ? { subject: req.query.subject } : {}; res.json(await Topic.find(filter).populate('subject', 'title').sort({ order: 1 }).lean()); } catch (e) { next(e); } });

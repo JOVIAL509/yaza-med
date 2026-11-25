@@ -53,7 +53,7 @@ server/   Express config, models, controllers, routes, middleware, services
 
 ### UI design
 
-Use a distinctive deep-teal and warm-lime Yaza Med palette, high contrast type, a calm editorial layout, compact subject color accents, rounded but restrained cards, and generous reading widths. Desktop uses a persistent sidebar with search and progress; mobile uses a bottom navigation bar. Light/dark themes, clear loading/error/empty states, and visible progress support low-friction study. Quick lessons are structured as objectives → explanation → visual/example → key facts → short assessment.
+Use a distinctive deep-teal and warm-lime Yaza Med palette, high contrast type, a calm editorial layout, compact subject color accents, rounded but restrained cards, and generous reading widths. Desktop uses a persistent sidebar with search and progress; mobile uses a bottom navigation bar. Light/dark themes, clear loading/error/empty states, and visible progress support low-friction study. Study notes and practice questions are organized for concise, accessible study sessions.
 
 ## Local setup
 
