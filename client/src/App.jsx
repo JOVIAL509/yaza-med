@@ -32,6 +32,27 @@ const dashboardFeatures = [
 ];
 const learningFeatureHref = slug => slug === 'high-yield' ? '/nyani' : `/learn?type=${slug}`;
 const officeDocument = name => /\.(docx?|pptx?|xlsx?)$/i.test(name);
+const notePreviewMimeTypes = {
+  '.csv': 'text/csv',
+  '.gif': 'image/gif',
+  '.jpeg': 'image/jpeg',
+  '.jpg': 'image/jpeg',
+  '.json': 'application/json',
+  '.md': 'text/plain',
+  '.pdf': 'application/pdf',
+  '.png': 'image/png',
+  '.txt': 'text/plain',
+  '.webp': 'image/webp',
+  '.htm': 'text/plain',
+  '.html': 'text/plain'
+};
+const notePreviewMimeType = file => {
+  const extension = file.name.match(/\.[^.]+$/)?.[0].toLowerCase();
+  const inferred = notePreviewMimeTypes[extension];
+  if (inferred) return inferred;
+  const reported = file.contentType?.split(';')[0].toLowerCase();
+  return ['application/pdf', 'application/json', 'image/gif', 'image/jpeg', 'image/png', 'image/webp', 'text/csv', 'text/plain'].includes(reported) ? reported : null;
+};
 
 function authErrorMessage(error, fallback) {
   if (error.apiHint) return error.apiHint;
@@ -42,6 +63,13 @@ function authErrorMessage(error, fallback) {
       : 'Could not reach the deployed API. Check VITE_API_URL, the API health endpoint, and the backend CORS origin list.';
   }
   return fallback;
+}
+
+function ErrorNotice({ message, onRetry }) {
+  return <div className={`error-message${onRetry ? ' load-error' : ''}`} role="alert">
+    <span>{message}</span>
+    {onRetry&&<button className="button-outline" onClick={onRetry}>Try again</button>}
+  </div>;
 }
 
 function App() {
@@ -72,8 +100,10 @@ function App() {
       </div>
     </header>
     {menu && <nav className="mobile-dropdown" id="mobile-navigation" aria-label="Mobile navigation">
-      <Link to="/#subjects" onClick={() => setMenu(false)}>Subjects</Link>
-      <Link to="/#how" onClick={() => setMenu(false)}>How it works</Link>
+      {dashboardFeatures.map(feature=>{
+        const FeatureIcon=feature.icon;
+        return <Link key={feature.title} to={feature.href} onClick={()=>setMenu(false)}><FeatureIcon size={20} aria-hidden="true"/><span>{feature.title}</span></Link>;
+      })}
       {user ? <Link to="/dashboard" onClick={() => setMenu(false)}>My learning</Link> : <Link to="/login" onClick={() => setMenu(false)}>Log in</Link>}
     </nav>}
     <Routes><Route path="/" element={<Home user={user}/>}/><Route path="/login" element={<Auth mode="login" onLogin={login}/>}/><Route path="/register" element={<Auth mode="register" onLogin={login}/>}/><Route path="/forgot-password" element={<Auth mode="forgot" onLogin={login}/>}/><Route path="/dashboard" element={user ? <Dashboard user={user}/> : <Auth mode="login" onLogin={login}/>}/><Route path="/learn" element={user ? <Learn user={user}/> : <Auth mode="login" onLogin={login}/>}/><Route path="/nyani" element={user ? <Nyani/> : <Auth mode="login" onLogin={login}/>}/><Route path="/admin" element={user?.role === 'admin' ? <Admin/> : <Auth mode="login" onLogin={login}/>}/><Route path="*" element={<Home user={user}/>}/></Routes>
@@ -304,27 +334,35 @@ function NotesLibrary({user}) {
   const [loadingNotes,setLoadingNotes]=useState(false);
   const [error,setError]=useState('');
   const [query,setQuery]=useState('');
+  const [retryKind,setRetryKind]=useState('');
+  const [subjectsRetry,setSubjectsRetry]=useState(0);
+  const [notesRetry,setNotesRetry]=useState(0);
 
   useEffect(()=>{
     let live=true;
+    setLoadingSubjects(true);
+    setError('');
+    setRetryKind('');
     api.get('/subjects')
       .then(({data})=>{if(live)setAvailableSubjects(data);})
-      .catch(e=>{if(live)setError(e.response?.data?.message||'Unable to load subjects. Please try again.');})
+      .catch(e=>{if(live){setError(e.response?.data?.message||'Unable to load subjects. Please try again.');setRetryKind('subjects');}})
       .finally(()=>{if(live)setLoadingSubjects(false);});
     return()=>{live=false;};
-  },[]);
+  },[subjectsRetry]);
 
   useEffect(()=>{
     if(!selectedSubject)return;
     let live=true;
     setLoadingNotes(true);
     setError('');
+    setRetryKind('');
+    setNoteGroups([]);
     api.get('/notes',{params:{subject:selectedSubject.slug,q:query.trim()||undefined}})
       .then(({data})=>{if(live)setNoteGroups(data||[]);})
-      .catch(e=>{if(live)setError(e.response?.data?.message||'Unable to load notes. Please try again.');})
+      .catch(e=>{if(live){setError(e.response?.data?.message||'Unable to load notes. Please try again.');setRetryKind('notes');}})
       .finally(()=>{if(live)setLoadingNotes(false);});
     return()=>{live=false;};
-  },[selectedSubject,query]);
+  },[selectedSubject,query,notesRetry]);
 
   const openStorageNote=async(file,download=false)=>{
     const popup=download?null:window.open('about:blank','_blank');
@@ -338,13 +376,24 @@ function NotesLibrary({user}) {
         link.click();
         link.remove();
       }else{
-        const url=officeDocument(file.name)?createOfficeViewerUrl(data.url):data.url;
+        let url;
+        if(officeDocument(file.name)){
+          url=createOfficeViewerUrl(data.url);
+        }else{
+          const mimeType=notePreviewMimeType(file);
+          if(!mimeType)throw new Error('This file type cannot be previewed in the browser. Use Download to open it with a compatible app.');
+          const response=await fetch(data.url);
+          if(!response.ok)throw new Error('Could not load this file for browser preview.');
+          const blob=new Blob([await response.blob()],{type:mimeType});
+          url=URL.createObjectURL(blob);
+          window.setTimeout(()=>URL.revokeObjectURL(url),10*60*1000);
+        }
         if(popup)popup.location=url;
         else window.location.assign(url);
       }
     }catch(e){
       popup?.close();
-      setError(e.response?.data?.message||'Could not open this note.');
+      setError(e.response?.data?.message||e.message||'Could not open this note.');
     }
   };
 
@@ -365,10 +414,10 @@ function NotesLibrary({user}) {
     <section className="workspace-main learn-main">
       <div className="workspace-top"><Link to="/dashboard">Your learning space</Link><span> / Notes library</span></div>
       <div className="learn-heading"><div className="eyebrow muted">A GOOD PLACE TO BEGIN</div><h1>{selectedSubject?`${selectedSubject.title} notes`:'Notes library'}<i>.</i></h1><p>{selectedSubject?'Choose a file to view or download.':'Choose a subject to explore its study notes.'}</p></div>
-      {error&&<div className="error-message" role="alert">{error}</div>}
+      {error&&<ErrorNotice message={error} onRetry={retryKind==='subjects'?()=>setSubjectsRetry(value=>value+1):retryKind==='notes'?()=>setNotesRetry(value=>value+1):undefined}/>}
       {!selectedSubject
         ? loadingSubjects?<div className="content-skeleton"><i/><i/><i/></div>
-          : availableSubjects.length
+          : retryKind==='subjects'?null:availableSubjects.length
             ? <div className="notes-subject-picker">{availableSubjects.map(item=>{
                 const subjectInfo=subjects.find(subject=>subject.name===item.title);
                 const SubjectIcon=subjectInfo?.icon||BookOpen;
@@ -385,7 +434,7 @@ function NotesLibrary({user}) {
             <label><Search size={15}/><input aria-label="Search notes" placeholder="Search notes" value={query} onChange={event=>setQuery(event.target.value)}/></label>
           </div>
           {loadingNotes?<div className="content-skeleton"><i/><i/><i/></div>
-            : files.length
+            : retryKind==='notes'?null:files.length
               ? <div className="note-file-grid">{files.map(file=><article className="material-card note-file-card" key={file.path}>
                   <div className="material-card-top"><span className="material-type">{file.contentType?.includes('pdf')||/\.pdf$/i.test(file.name)?'PDF NOTE':'STUDY FILE'}</span><span className="note-topic">{file.topic}</span></div>
                   <h3>{file.name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ')}</h3>
@@ -404,8 +453,38 @@ function LearningFeatureDirectory({user}) {
 
 function Learn({user}) {
   const [params,setParams]=useSearchParams(); const type=params.get('type')||''; const initialSubject=params.get('subject')||''; const view=params.get('view')||''; const showFeatureDirectory=!type&&!initialSubject&&view!=='materials';
-  const [subject,setSubject]=useState(initialSubject); const [items,setItems]=useState([]); const [noteGroups,setNoteGroups]=useState([]); const [questions,setQuestions]=useState([]); const [loading,setLoading]=useState(true); const [error,setError]=useState(''); const [q,setQ]=useState(''); const [page,setPage]=useState(1); const [responses,setResponses]=useState({}); const [result,setResult]=useState(null); const [detail,setDetail]=useState(null); const [saved,setSaved]=useState({});
-  useEffect(()=>{if(showFeatureDirectory||type==='note'||type==='ai-quiz')return;let live=true;setLoading(true);setError('');setResult(null);const fetch=async()=>{try{if(type==='practice'){const {data}=await api.get('/questions',{params:{subject,page,limit:10}});if(live)setQuestions(data);}else {const query={page,limit:9};if(type)query.type=type;if(subject)query.subject=subject;if(q.trim())query.q=q.trim();const {data}=await api.get('/content',{params:query});if(live){setItems(data.items||[]);setNoteGroups([]);}}}catch(e){if(live)setError(e.response?.data?.message||'Unable to load learning materials. Please try again.');}finally{if(live)setLoading(false);}};fetch();return()=>{live=false};},[showFeatureDirectory,type,subject,page,q]);
+  const [subject,setSubject]=useState(initialSubject); const [items,setItems]=useState([]); const [noteGroups,setNoteGroups]=useState([]); const [questions,setQuestions]=useState([]); const [loading,setLoading]=useState(true); const [error,setError]=useState(''); const [loadError,setLoadError]=useState(false); const [reload,setReload]=useState(0); const [q,setQ]=useState(''); const [page,setPage]=useState(1); const [responses,setResponses]=useState({}); const [result,setResult]=useState(null); const [detail,setDetail]=useState(null); const [saved,setSaved]=useState({});
+  useEffect(()=>{
+    if(showFeatureDirectory||type==='note'||type==='ai-quiz')return;
+    let live=true;
+    setLoading(true);
+    setError('');
+    setLoadError(false);
+    setResult(null);
+    if(type==='practice')setQuestions([]);
+    else setItems([]);
+    const fetch=async()=>{
+      try{
+        if(type==='practice'){
+          const {data}=await api.get('/questions',{params:{subject,page,limit:10}});
+          if(live)setQuestions(data);
+        }else{
+          const query={page,limit:9};
+          if(type)query.type=type;
+          if(subject)query.subject=subject;
+          if(q.trim())query.q=q.trim();
+          const {data}=await api.get('/content',{params:query});
+          if(live)setItems(data.items||[]);
+        }
+      }catch(e){
+        if(live){setError(e.response?.data?.message||'Unable to load learning materials. Please try again.');setLoadError(true);}
+      }finally{
+        if(live)setLoading(false);
+      }
+    };
+    fetch();
+    return()=>{live=false;};
+  },[showFeatureDirectory,type,subject,page,q,reload]);
   const title=type==='quick-lesson'?'Kuyaza in 15 minutes':type==='note'?'Notes library':type==='high-yield'?'Nyani & high-yield':type==='practice'?'Practice questions':'Explore learning';
   const chooseType=t=>{setParams(t?{type:t}:{view:'materials'});setPage(1);setResponses({});setResult(null);};
   const submit=async()=>{try{const {data}=await api.post('/attempts',{mode:'practice',responses:Object.entries(responses).map(([question,answer])=>({question,answer}))});setResult(data);}catch(e){setError(e.response?.data?.message||'Your answers could not be submitted.');}};
@@ -415,7 +494,7 @@ function Learn({user}) {
   if(showFeatureDirectory)return <LearningFeatureDirectory user={user}/>;
   if(type==='note')return <NotesLibrary user={user}/>;
   if(type==='ai-quiz')return <AiQuiz user={user}/>;
-  return <main className="workspace"><aside className="side-nav" aria-label="Learning space navigation"><Link to="/dashboard" className="side-brand"><span className="brand-symbol" aria-hidden="true"><span></span><span></span><span></span></span> yaza<span>med</span></Link><small>YOUR SPACE</small><NavLink to="/dashboard"><LayoutDashboard size={20}/> Overview</NavLink>{sections.map(s=>s.slug==='high-yield'?<NavLink key={s.slug} to='/nyani'><s.icon size={20}/>Nyani library</NavLink>:<button key={s.slug} className={type===s.slug?'side-active':''} onClick={()=>chooseType(s.slug)}><s.icon size={20}/>{s.small}</button>)}<small>ACCOUNT</small><Link to="/dashboard#subjects"><GraduationCap size={20}/> My subjects</Link><div className="side-user"><span className="user-avatar">{user.name?.slice(0,1).toUpperCase()}</span><span><b>{user.name}</b><small>Student</small></span></div></aside><section className="workspace-main learn-main"><div className="workspace-top"><Link to="/dashboard">Your learning space</Link><span> / {title}</span></div><div className="learn-heading"><div className="eyebrow muted">A GOOD PLACE TO BEGIN</div><h1>{title}<i>.</i></h1><p>Small, steady steps make a strong foundation.</p></div><div className="learn-controls"><div className="filter-tabs"><button className={!type?'selected':''} onClick={()=>chooseType('')}>Everything</button>{sections.filter(s=>s.slug!=='practice').map(s=><button key={s.slug} className={type===s.slug?'selected':''} onClick={()=>chooseType(s.slug)}>{s.small}</button>)}<button className={type==='practice'?'selected':''} onClick={()=>chooseType('practice')}>Practice</button></div><div className="learn-filters"><label><Search size={15}/><input placeholder="Search materials" value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>e.key==='Enter'&&setPage(1)}/><button className="search-submit" onClick={()=>{setPage(1);document.activeElement.blur()}}>Go</button></label><select aria-label="Filter subject" value={subject} onChange={e=>{setSubject(e.target.value);setPage(1)}}><option value="">All subjects</option>{subjects.map(s=><option value={s.name} key={s.name}>{s.name}</option>)}</select></div></div>{error&&<div className="error-message">{error}</div>}{loading?<div className="content-skeleton"><i/><i/><i/></div>:type==='practice'?<><div className="quiz-help"><span><CircleHelp size={18}/></span><div><b>Learn from every answer.</b><small>Your choices stay private. When you submit, you’ll see the correct answers and explanations.</small></div><span className="quiz-count">{questions.length} QUESTIONS</span></div>{questions.length?<div className="question-list">{questions.map((item,i)=><article className="question-card" key={item._id}><div className="question-meta"><span>QUESTION {String(i+1).padStart(2,'0')}</span><span>{item.difficulty||'medium'} · {item.topic?.title||'Core concepts'}</span></div><h3>{item.prompt}</h3><div className="option-list">{(item.options||[]).map((option,index)=><label key={index} className={responses[item._id]===index?'option-selected':''}><input type="radio" name={item._id} checked={responses[item._id]===index} onChange={()=>setResponses({...responses,[item._id]:index})}/><span className="option-letter">{String.fromCharCode(65+index)}</span>{option}</label>)}</div>{result&&<div className={`answer-feedback ${result.explanations.find(x=>x.question===item._id)?.correct?'good':'needs-work'}`}><b>{result.explanations.find(x=>x.question===item._id)?.correct?'That’s right.':'Let’s learn from it.'}</b> {result.explanations.find(x=>x.question===item._id)?.explanation}</div>}</article>)}<button className="button-primary submit-quiz" onClick={submit} disabled={Object.keys(responses).length===0}>Check my answers <ArrowRight size={15}/></button>{result&&<div className="quiz-result"><Check size={19}/><div><b>{result.percentage}% — a solid step forward.</b><span>You got {result.attempt.score} of {result.attempt.total} correct.</span></div></div>}</div>:<div className="empty-state"><div className="empty-spark">✳</div><div><b>There aren’t any published questions here yet.</b><span>Choose another subject or return soon. Your first practice set is on its way.</span></div><Link to="/learn?type=quick-lesson" className="button-outline">Explore quick lessons <ArrowRight size={18}/></Link></div>}</>:type==='note'?noteGroups.length?<div className="note-subject-list">{noteGroups.map(group=><section className="note-subject" key={group.slug}><div className="dash-section-head"><div><div className="eyebrow muted">COURSE OUTLINE</div><h2>{group.title} <i>notes</i></h2></div><span>{group.files.length} FILES</span></div><div className="note-file-grid">{group.files.map(file=><article className="material-card note-file-card" key={file.path}><div className="material-card-top"><span className="material-type">{file.contentType?.includes('pdf')||/\.pdf$/i.test(file.name)?'PDF NOTE':'STUDY FILE'}</span><span className="note-topic">{file.topic}</span></div><h3>{file.name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ')}</h3><p>{file.path}</p><div className="note-actions"><button className="button-outline" onClick={()=>openStorageNote(file)}>View <ArrowRight size={14}/></button><button className="button-primary" onClick={()=>openStorageNote(file,true)}>Download</button></div></article>)}</div></section>)}</div>:<div className="empty-state"><div className="empty-spark">✳</div><div><b>No notes found for this subject yet.</b><span>Study files in Supabase Storage appear here when they are placed in subject folders and the course outline is available.</span></div><Link to="/learn?type=quick-lesson" className="button-outline">Explore lessons <ArrowRight size={18}/></Link></div>:items.length?<><div className="material-grid">{items.map(item=><article className="material-card" key={item._id}><div className="material-card-top"><span className="material-type">{item.type==='quick-lesson'?'15 MIN LESSON':item.type==='high-yield'?'HIGH-YIELD':'STUDY NOTE'}</span><button className={`bookmark-btn ${saved[item._id]?'is-saved':''}`} aria-label="Save for later" onClick={()=>bookmark(item)}>{saved[item._id]?<Check size={18}/>:<Bookmark size={18}/>}</button></div><h3>{item.title}</h3><p>{item.body?.replace(/<[^>]*>/g,'').slice(0,155)||'Open this learning resource to explore the topic and build your understanding.'}{item.body?.length>155?'…':''}</p><div className="material-card-foot"><span>{item.subject?.title||'Learning resource'} {item.duration?`· ${item.duration} min`:''}</span><button onClick={()=>openItem(item)}>Read <ArrowRight size={18}/></button></div></article>)}</div><div className="pagination"><button disabled={page<=1} onClick={()=>setPage(page-1)}>← Previous</button><span>Page {page}</span><button disabled={items.length<9} onClick={()=>setPage(page+1)}>Next →</button></div></>:<div className="empty-state"><div className="empty-spark">✳</div><div><b>No published resources in this view yet.</b><span>Try a different study area or choose another subject. Your learning dashboard will point you to available activities.</span></div><Link to={type==='quick-lesson'?'/dashboard':'/learn?type=quick-lesson'} className="button-outline">{type==='quick-lesson'?'Return to dashboard':'Explore quick lessons'} <ArrowRight size={18}/></Link><Link to="/learn?type=practice" className="button-outline">Practice questions <ArrowRight size={18}/></Link></div>}{detail&&<div className="modal-backdrop" onClick={()=>setDetail(null)}><article className="reader-modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setDetail(null)} aria-label="Close"><X size={18}/></button><div className="eyebrow muted">{detail.type==='quick-lesson'?'Kuyaza in 15 minutes':detail.type==='high-yield'?'Nyani & high-yield':'Notes library'}</div><h2>{detail.title}</h2><div className="reader-subtitle">{detail.subject?.title||'Study resource'} {detail.duration?`· ${detail.duration} minute read`:''}</div>{detail.objectives?.length>0&&<div className="reader-objectives"><b>By the end, you’ll be able to</b>{detail.objectives.map((o,i)=><span key={i}><Check size={14}/>{o}</span>)}</div>}<div className="reader-body">{detail.body?.split('\n').map((line,i)=>line?<p key={i}>{line}</p>:<br key={i}/>)}</div>{detail.pdfUrl&&<a className="button-outline" href={detail.pdfUrl} target="_blank" rel="noreferrer">Open PDF <ArrowRight size={14}/></a>}</article></div>}</section></main>;
+  return <main className="workspace"><aside className="side-nav" aria-label="Learning space navigation"><Link to="/dashboard" className="side-brand"><span className="brand-symbol" aria-hidden="true"><span></span><span></span><span></span></span> yaza<span>med</span></Link><small>YOUR SPACE</small><NavLink to="/dashboard"><LayoutDashboard size={20}/> Overview</NavLink>{sections.map(s=>s.slug==='high-yield'?<NavLink key={s.slug} to='/nyani'><s.icon size={20}/>Nyani library</NavLink>:<button key={s.slug} className={type===s.slug?'side-active':''} onClick={()=>chooseType(s.slug)}><s.icon size={20}/>{s.small}</button>)}<small>ACCOUNT</small><Link to="/dashboard#subjects"><GraduationCap size={20}/> My subjects</Link><div className="side-user"><span className="user-avatar">{user.name?.slice(0,1).toUpperCase()}</span><span><b>{user.name}</b><small>Student</small></span></div></aside><section className="workspace-main learn-main"><div className="workspace-top"><Link to="/dashboard">Your learning space</Link><span> / {title}</span></div><div className="learn-heading"><div className="eyebrow muted">A GOOD PLACE TO BEGIN</div><h1>{title}<i>.</i></h1><p>Small, steady steps make a strong foundation.</p></div><div className="learn-controls"><div className="filter-tabs"><button className={!type?'selected':''} onClick={()=>chooseType('')}>Everything</button>{sections.filter(s=>s.slug!=='practice').map(s=><button key={s.slug} className={type===s.slug?'selected':''} onClick={()=>chooseType(s.slug)}>{s.small}</button>)}<button className={type==='practice'?'selected':''} onClick={()=>chooseType('practice')}>Practice</button></div><div className="learn-filters"><label><Search size={15}/><input placeholder="Search materials" value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>e.key==='Enter'&&setPage(1)}/><button className="search-submit" onClick={()=>{setPage(1);document.activeElement.blur()}}>Go</button></label><select aria-label="Filter subject" value={subject} onChange={e=>{setSubject(e.target.value);setPage(1)}}><option value="">All subjects</option>{subjects.map(s=><option value={s.name} key={s.name}>{s.name}</option>)}</select></div></div>{error&&<ErrorNotice message={error} onRetry={loadError?()=>setReload(value=>value+1):undefined}/>}{loading?<div className="content-skeleton"><i/><i/><i/></div>:type==='practice'?<><div className="quiz-help"><span><CircleHelp size={18}/></span><div><b>Learn from every answer.</b><small>Your choices stay private. When you submit, you’ll see the correct answers and explanations.</small></div><span className="quiz-count">{questions.length} QUESTIONS</span></div>{questions.length?<div className="question-list">{questions.map((item,i)=><article className="question-card" key={item._id}><div className="question-meta"><span>QUESTION {String(i+1).padStart(2,'0')}</span><span>{item.difficulty||'medium'} · {item.topic?.title||'Core concepts'}</span></div><h3>{item.prompt}</h3><div className="option-list">{(item.options||[]).map((option,index)=><label key={index} className={responses[item._id]===index?'option-selected':''}><input type="radio" name={item._id} checked={responses[item._id]===index} onChange={()=>setResponses({...responses,[item._id]:index})}/><span className="option-letter">{String.fromCharCode(65+index)}</span>{option}</label>)}</div>{result&&<div className={`answer-feedback ${result.explanations.find(x=>x.question===item._id)?.correct?'good':'needs-work'}`}><b>{result.explanations.find(x=>x.question===item._id)?.correct?'That’s right.':'Let’s learn from it.'}</b> {result.explanations.find(x=>x.question===item._id)?.explanation}</div>}</article>)}<button className="button-primary submit-quiz" onClick={submit} disabled={Object.keys(responses).length===0}>Check my answers <ArrowRight size={15}/></button>{result&&<div className="quiz-result"><Check size={19}/><div><b>{result.percentage}% — a solid step forward.</b><span>You got {result.attempt.score} of {result.attempt.total} correct.</span></div></div>}</div>:loadError?null:<div className="empty-state"><div className="empty-spark">✳</div><div><b>There aren’t any published questions here yet.</b><span>Choose another subject or return soon. Your first practice set is on its way.</span></div><Link to="/learn?type=quick-lesson" className="button-outline">Explore quick lessons <ArrowRight size={18}/></Link></div>}</>:type==='note'?noteGroups.length?<div className="note-subject-list">{noteGroups.map(group=><section className="note-subject" key={group.slug}><div className="dash-section-head"><div><div className="eyebrow muted">COURSE OUTLINE</div><h2>{group.title} <i>notes</i></h2></div><span>{group.files.length} FILES</span></div><div className="note-file-grid">{group.files.map(file=><article className="material-card note-file-card" key={file.path}><div className="material-card-top"><span className="material-type">{file.contentType?.includes('pdf')||/\.pdf$/i.test(file.name)?'PDF NOTE':'STUDY FILE'}</span><span className="note-topic">{file.topic}</span></div><h3>{file.name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ')}</h3><p>{file.path}</p><div className="note-actions"><button className="button-outline" onClick={()=>openStorageNote(file)}>View <ArrowRight size={14}/></button><button className="button-primary" onClick={()=>openStorageNote(file,true)}>Download</button></div></article>)}</div></section>)}</div>:<div className="empty-state"><div className="empty-spark">✳</div><div><b>No notes found for this subject yet.</b><span>Study files in Supabase Storage appear here when they are placed in subject folders and the course outline is available.</span></div><Link to="/learn?type=quick-lesson" className="button-outline">Explore lessons <ArrowRight size={18}/></Link></div>:items.length?<><div className="material-grid">{items.map(item=><article className="material-card" key={item._id}><div className="material-card-top"><span className="material-type">{item.type==='quick-lesson'?'15 MIN LESSON':item.type==='high-yield'?'HIGH-YIELD':'STUDY NOTE'}</span><button className={`bookmark-btn ${saved[item._id]?'is-saved':''}`} aria-label="Save for later" onClick={()=>bookmark(item)}>{saved[item._id]?<Check size={18}/>:<Bookmark size={18}/>}</button></div><h3>{item.title}</h3><p>{item.body?.replace(/<[^>]*>/g,'').slice(0,155)||'Open this learning resource to explore the topic and build your understanding.'}{item.body?.length>155?'…':''}</p><div className="material-card-foot"><span>{item.subject?.title||'Learning resource'} {item.duration?`· ${item.duration} min`:''}</span><button onClick={()=>openItem(item)}>Read <ArrowRight size={18}/></button></div></article>)}</div><div className="pagination"><button disabled={page<=1} onClick={()=>setPage(page-1)}>← Previous</button><span>Page {page}</span><button disabled={items.length<9} onClick={()=>setPage(page+1)}>Next →</button></div></>:loadError?null:<div className="empty-state"><div className="empty-spark">✳</div><div><b>No published resources in this view yet.</b><span>Try a different study area or choose another subject. Your learning dashboard will point you to available activities.</span></div><Link to={type==='quick-lesson'?'/dashboard':'/learn?type=quick-lesson'} className="button-outline">{type==='quick-lesson'?'Return to dashboard':'Explore quick lessons'} <ArrowRight size={18}/></Link><Link to="/learn?type=practice" className="button-outline">Practice questions <ArrowRight size={18}/></Link></div>}{detail&&<div className="modal-backdrop" onClick={()=>setDetail(null)}><article className="reader-modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setDetail(null)} aria-label="Close"><X size={18}/></button><div className="eyebrow muted">{detail.type==='quick-lesson'?'Kuyaza in 15 minutes':detail.type==='high-yield'?'Nyani & high-yield':'Notes library'}</div><h2>{detail.title}</h2><div className="reader-subtitle">{detail.subject?.title||'Study resource'} {detail.duration?`· ${detail.duration} minute read`:''}</div>{detail.objectives?.length>0&&<div className="reader-objectives"><b>By the end, you’ll be able to</b>{detail.objectives.map((o,i)=><span key={i}><Check size={14}/>{o}</span>)}</div>}<div className="reader-body">{detail.body?.split('\n').map((line,i)=>line?<p key={i}>{line}</p>:<br key={i}/>)}</div>{detail.pdfUrl&&<a className="button-outline" href={detail.pdfUrl} target="_blank" rel="noreferrer">Open PDF <ArrowRight size={14}/></a>}</article></div>}</section></main>;
 }
 
 function Admin() {
