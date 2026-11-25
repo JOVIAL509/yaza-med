@@ -94,7 +94,6 @@ export default function AiQuiz({user}) {
       <div className="side-user"><span className="user-avatar">{user.name?.slice(0,1).toUpperCase()}</span><span><b>{user.name}</b><small>Student</small></span></div>
     </aside>
     <section className="workspace-main learn-main ai-quiz-main">
-      <div className="workspace-top"><Link to="/dashboard">Your learning space</Link><span> / Yaza Med AI quiz</span></div>
       <div className="learn-heading"><div className="eyebrow muted">EXAMINER-STYLE ASSESSMENT</div><h1>Yaza Med AI <i>quiz.</i></h1><p>Upload study material for 30 original multiple-choice questions and 3 structured short-answer questions.</p></div>
       {error&&<div className="error-message" role="alert">{error}</div>}
       {!quiz&&<section className={`ai-upload-panel ${dragging?'is-dragging':''}`} onDragOver={event=>{event.preventDefault();setDragging(true);}} onDragLeave={()=>setDragging(false)} onDrop={event=>{event.preventDefault();setDragging(false);chooseFile(event.dataTransfer.files?.[0]);}}>
