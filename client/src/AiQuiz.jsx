@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { ArrowRight, BookOpen, Brain, Check, FileText, LayoutDashboard, LoaderCircle, RotateCcw, Sparkles, Upload } from 'lucide-react';
+import { ArrowRight, BookOpen, Brain, Check, FileText, LoaderCircle, RotateCcw, Sparkles, Upload } from 'lucide-react';
 import { api } from './api.js';
 
 const ACCEPTED_FILES = '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.odt,.odp,.ods,.odg,.rtf,.epub,.txt,.md,.csv,.html,.htm,.tex,.json,.xml,.png,.jpg,.jpeg,.webp,.gif';
@@ -82,15 +82,13 @@ export default function AiQuiz({user}) {
   const totalAnswers=MAX_QUESTIONS+MAX_SHORT_ANSWERS;
   return <main className="workspace">
     <aside className="side-nav">
-      <Link to="/dashboard" className="side-brand"><span className="brand-symbol"><span></span><span></span><span></span></span> yaza<span>med</span></Link>
       <small>YOUR SPACE</small>
-      <NavLink to="/dashboard"><LayoutDashboard size={17}/> Overview</NavLink>
       <NavLink to="/learn?type=note"><BookOpen size={17}/> Notes</NavLink>
       <NavLink to="/learn?type=ai-quiz" className="side-active"><Sparkles size={17}/> Yaza Med AI quiz</NavLink>
       <NavLink to="/learn?type=practice"><Brain size={17}/> Practice</NavLink>
       <NavLink to="/nyani"><Sparkles size={17}/> Nyani library</NavLink>
       <small>ACCOUNT</small>
-      <Link to="/dashboard#subjects"><BookOpen size={17}/> My subjects</Link>
+      <Link to="/learn?view=materials"><BookOpen size={17}/> My subjects</Link>
       <div className="side-user"><span className="user-avatar">{user.name?.slice(0,1).toUpperCase()}</span><span><b>{user.name}</b><small>Student</small></span></div>
     </aside>
     <section className="workspace-main learn-main ai-quiz-main">

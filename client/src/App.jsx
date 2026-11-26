@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Activity, ArrowDownRight, ArrowLeft, ArrowRight, Atom, BookOpen, Bookmark, Brain, Check, ChevronDown, CircleHelp, FlaskConical, GraduationCap, LayoutDashboard, LogOut, Menu, Moon, Search, ShieldCheck, Sigma, Sparkles, Sun, X, Laptop, Languages, LockKeyhole, Mail } from 'lucide-react';
 import { api } from './api.js';
@@ -25,8 +25,7 @@ const dashboardFeatures = [
   { title: 'Notes', description: 'Open lecture notes, PDFs and study materials by subject.', icon: BookOpen, href: '/learn?type=note', tint: 'tint-blue', action: 'Browse notes' },
   { title: 'Practice questions', description: 'Test your understanding and learn from each answer.', icon: CircleHelp, href: '/learn?type=practice', tint: 'tint-coral', action: 'Start practising' },
   { title: 'AI study quiz', description: 'Create a practice quiz from your own study material.', icon: Brain, href: '/learn?type=ai-quiz', tint: 'tint-violet', action: 'Build a quiz' },
-  { title: 'Study resources', description: 'Browse past papers and revision files in the Nyani library.', icon: Sparkles, href: '/nyani', tint: 'tint-lime', action: 'Browse resources' },
-  { title: 'My learning progress', description: 'Review your practice activity, accuracy and saved items.', icon: Activity, href: '/dashboard#progress', tint: 'tint-blue', action: 'View progress' }
+  { title: 'Study resources', description: 'Browse past papers and revision files in the Nyani library.', icon: Sparkles, href: '/nyani', tint: 'tint-lime', action: 'Browse resources' }
 ];
 const learningFeatureHref = slug => slug === 'high-yield' ? '/nyani' : `/learn?type=${slug}`;
 const officeDocument = name => /\.(docx?|pptx?|xlsx?)$/i.test(name);
@@ -76,6 +75,35 @@ function App() {
   const [menu, setMenu] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const touchStart = useRef(null);
+  const handleTouchStart = event => {
+    const target = event.target;
+    if (event.touches.length !== 1 || target.closest('a,button,input,textarea,select,[contenteditable="true"],.side-nav,.modal-backdrop')) {
+      touchStart.current = null;
+      return;
+    }
+    touchStart.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+  };
+  const handleTouchEnd = event => {
+    const start = touchStart.current;
+    touchStart.current = null;
+    if (!start || event.changedTouches.length !== 1) return;
+    const deltaX = event.changedTouches[0].clientX - start.x;
+    const deltaY = event.changedTouches[0].clientY - start.y;
+    if (Math.abs(deltaX) < 70 || Math.abs(deltaY) > 50 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.3) return;
+
+    const params = new URLSearchParams(location.search);
+    const currentSlug = location.pathname === '/nyani'
+      ? 'high-yield'
+      : location.pathname === '/learn'
+        ? params.get('type')
+        : null;
+    const currentIndex = sections.findIndex(section => section.slug === currentSlug);
+    if (currentIndex < 0) return;
+    const direction = deltaX < 0 ? 1 : -1;
+    const nextIndex = (currentIndex + direction + sections.length) % sections.length;
+    navigate(learningFeatureHref(sections[nextIndex].slug));
+  };
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem('yaza-theme', theme); }, [theme]);
   useEffect(() => {
     if (!location.hash) return;
@@ -83,8 +111,8 @@ function App() {
     document.getElementById(targetId)?.scrollIntoView({ block: 'start' });
   }, [location.hash, location.pathname]);
   const signOut = () => { localStorage.removeItem('yaza-token'); localStorage.removeItem('yaza-user'); setUser(null); navigate('/'); };
-  const login = data => { localStorage.setItem('yaza-token', data.token); localStorage.setItem('yaza-user', JSON.stringify(data.user)); setUser(data.user); navigate('/dashboard'); };
-  return <div className="app-shell">
+  const login = data => { localStorage.setItem('yaza-token', data.token); localStorage.setItem('yaza-user', JSON.stringify(data.user)); setUser(data.user); navigate('/learn?type=note'); };
+  return <div className="app-shell" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
     <header className="topbar">
       <Link to="/" className="brand"><span className="brand-symbol" aria-hidden="true"><span></span><span></span><span></span></span><span>yaza<span className="brand-light">med</span></span></Link>
       <nav className="top-links" aria-label="Main navigation">
@@ -93,7 +121,7 @@ function App() {
       </nav>
       <div className="top-actions">
         <button className="theme-btn" aria-label="Toggle theme" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>{theme === 'light' ? <Moon size={20}/> : <Sun size={20}/>}</button>
-        {user ? <><Link className="top-login" to="/dashboard">My learning</Link><button className="top-signup" onClick={signOut}>Sign out</button></> : <><Link className="top-login" to="/login">Log in</Link><Link className="top-signup" to="/register">Get started <ArrowRight size={18}/></Link></>}
+        {user ? <><Link className="top-login" to="/learn?type=note">Notes</Link><button className="top-signup" onClick={signOut}>Sign out</button></> : <><Link className="top-login" to="/login">Log in</Link><Link className="top-signup" to="/register">Get started <ArrowRight size={18}/></Link></>}
         <button className="mobile-menu" aria-label="Toggle menu" aria-expanded={menu} aria-controls="mobile-navigation" onClick={() => setMenu(!menu)}>{menu ? <X/> : <Menu/>}</button>
       </div>
     </header>
@@ -102,9 +130,9 @@ function App() {
         const FeatureIcon=feature.icon;
         return <Link key={feature.title} to={feature.href} onClick={()=>setMenu(false)}><FeatureIcon size={20} aria-hidden="true"/><span>{feature.title}</span></Link>;
       })}
-      {user ? <Link to="/dashboard" onClick={() => setMenu(false)}>My learning</Link> : <Link to="/login" onClick={() => setMenu(false)}>Log in</Link>}
+      {user ? <Link to="/learn?type=note" onClick={() => setMenu(false)}>Notes</Link> : <Link to="/login" onClick={() => setMenu(false)}>Log in</Link>}
     </nav>}
-    <Routes><Route path="/" element={<Home user={user}/>}/><Route path="/login" element={<Auth mode="login" onLogin={login}/>}/><Route path="/register" element={<Auth mode="register" onLogin={login}/>}/><Route path="/forgot-password" element={<Auth mode="forgot" onLogin={login}/>}/><Route path="/dashboard" element={user ? <Dashboard user={user}/> : <Auth mode="login" onLogin={login}/>}/><Route path="/learn" element={user ? <Learn user={user}/> : <Auth mode="login" onLogin={login}/>}/><Route path="/nyani" element={user ? <Nyani/> : <Auth mode="login" onLogin={login}/>}/><Route path="/admin" element={user?.role === 'admin' ? <Admin/> : <Auth mode="login" onLogin={login}/>}/><Route path="*" element={<Home user={user}/>}/></Routes>
+    <Routes><Route path="/" element={<Navigate to="/learn?type=note" replace/>}/><Route path="/login" element={<Auth mode="login" onLogin={login}/>}/><Route path="/register" element={<Auth mode="register" onLogin={login}/>}/><Route path="/forgot-password" element={<Auth mode="forgot" onLogin={login}/>}/><Route path="/dashboard" element={<Navigate to="/learn?type=note" replace/>}/><Route path="/learn" element={user ? <Learn user={user}/> : <Auth mode="login" onLogin={login}/>}/><Route path="/nyani" element={user ? <Nyani/> : <Auth mode="login" onLogin={login}/>}/><Route path="/admin" element={user?.role === 'admin' ? <Admin/> : <Auth mode="login" onLogin={login}/>}/><Route path="*" element={<Navigate to="/learn?type=note" replace/>}/></Routes>
     <footer className="footer"><Link to="/" className="brand"><span className="brand-symbol"><span></span><span></span><span></span></span><span>yaza<span className="brand-light">med</span></span></Link><span>A clearer path to medical school.</span><span>Made for Malawi 🇲🇼</span></footer></div>;
 }
 
@@ -281,15 +309,13 @@ function Dashboard({user}) {
   const today=new Intl.DateTimeFormat(undefined,{weekday:'long',month:'long',day:'numeric'}).format(new Date());
   return <main className="workspace">
     <aside className="side-nav" aria-label="Learning space navigation">
-      <Link to="/dashboard" className="side-brand"><span className="brand-symbol" aria-hidden="true"><span></span><span></span><span></span></span> yaza<span>med</span></Link>
       <small>YOUR SPACE</small>
-      <NavLink to="/dashboard"><LayoutDashboard size={20}/> Overview</NavLink>
       <NavLink to="/learn?type=note"><BookOpen size={20}/> Notes</NavLink>
       <NavLink to="/learn?type=practice"><CircleHelp size={20}/> Practice questions</NavLink>
       <NavLink to="/learn?type=ai-quiz"><Brain size={20}/> AI study quiz</NavLink>
       <NavLink to="/nyani"><Sparkles size={20}/> Study resources</NavLink>
       <small>ACCOUNT</small>
-      <Link to="/dashboard#subjects"><GraduationCap size={20}/> My subjects</Link>
+      <Link to="/learn?view=materials"><GraduationCap size={20}/> My subjects</Link>
       {user.role==='admin'&&<NavLink to="/admin"><ShieldCheck size={20}/> Admin studio</NavLink>}
       <div className="side-user"><span className="user-avatar" aria-hidden="true">{firstName.slice(0,1).toUpperCase()}</span><span><b>{user.name}</b><small>{user.role==='admin'?'Administrator':'Student'}</small></span></div>
     </aside>
@@ -413,14 +439,12 @@ function NotesLibrary({user}) {
 
   return <main className="workspace">
     <aside className="side-nav">
-      <Link to="/dashboard" className="side-brand"><span className="brand-symbol"><span></span><span></span><span></span></span> yaza<span>med</span></Link>
       <small>YOUR SPACE</small>
-      <NavLink to="/dashboard"><LayoutDashboard size={17}/> Overview</NavLink>
       {sections.map(section=>section.slug==='high-yield'
         ? <NavLink key={section.slug} to="/nyani"><section.icon size={17}/>Nyani library</NavLink>
         : <Link key={section.slug} to={`/learn?type=${section.slug}`} className={section.slug==='note'?'active':''}><section.icon size={17}/>{section.small}</Link>)}
       <small>ACCOUNT</small>
-      <Link to="/dashboard#subjects"><GraduationCap size={17}/> My subjects</Link>
+      <Link to="/learn?view=materials"><GraduationCap size={17}/> My subjects</Link>
       <div className="side-user"><span className="user-avatar">{user.name?.slice(0,1).toUpperCase()}</span><span><b>{user.name}</b><small>Student</small></span></div>
     </aside>
     <section className="workspace-main learn-main">

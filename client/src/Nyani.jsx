@@ -47,7 +47,7 @@ export default function Nyani() {
   };
 
   return <main className="nyani-page">
-    <div className="nyani-breadcrumb"><Link to="/dashboard"><ArrowLeft size={15}/> Back to your learning space</Link><span> / Nyani library</span></div>
+    <div className="nyani-breadcrumb"><Link to="/learn?type=note"><ArrowLeft size={15}/> Back to Notes</Link><span> / Nyani library</span></div>
     <header className="nyani-heading">
       <div className="nyani-heading-icon"><BookOpen size={20}/></div>
       <div><div className="eyebrow muted">PAST PAPERS & REVISION</div><h1>Nyani <i>library.</i></h1><p>Browse past papers and revision files by subject and semester.</p></div>

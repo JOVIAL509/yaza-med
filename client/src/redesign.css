@@ -261,6 +261,11 @@ textarea:focus-visible {
   padding: 28px 18px;
 }
 
+.side-nav > .side-brand,
+.side-nav > a[href="/dashboard"] {
+  display: none;
+}
+
 .side-brand {
   margin-bottom: 34px;
 }
