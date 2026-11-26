@@ -262,8 +262,7 @@ textarea:focus-visible {
 }
 
 .side-nav > .side-brand,
-.side-nav > a[href="/dashboard"],
-.side-nav > a[href="/dashboard#subjects"] {
+.side-nav > a[href="/dashboard"] {
   display: none;
 }
 
@@ -764,7 +763,6 @@ textarea:focus-visible {
   gap: 18px;
 }
 
-.filter-tabs button,
 .learn-filters select,
 .learn-filters label,
 .search-submit {
@@ -785,14 +783,6 @@ textarea:focus-visible {
 .learn-filters input {
   min-width: 120px;
   font-size: 15px;
-}
-
-.filter-tabs {
-  gap: 8px;
-}
-
-.filter-tabs button {
-  padding: 8px 13px;
 }
 
 .question-card h3,
@@ -1463,17 +1453,6 @@ textarea:focus-visible {
   .learn-filters {
     width: 100%;
     margin-left: 0;
-  }
-
-  .filter-tabs {
-    width: 100%;
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    padding-bottom: 5px;
-  }
-
-  .filter-tabs button {
-    flex: none;
   }
 
   .learn-filters label,
