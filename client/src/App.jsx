@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Activity, ArrowDownRight, ArrowLeft, ArrowRight, Atom, BookOpen, Bookmark, Brain, Check, ChevronDown, CircleHelp, FlaskConical, GraduationCap, LayoutDashboard, LogOut, Menu, Moon, Search, ShieldCheck, Sigma, Sparkles, Sun, X, Laptop, Languages, LockKeyhole, Mail } from 'lucide-react';
+import { Activity, ArrowDownRight, ArrowLeft, ArrowRight, Atom, BookOpen, Bookmark, Brain, Check, ChevronDown, CircleHelp, FlaskConical, GraduationCap, LayoutDashboard, LogIn, Menu, Moon, Search, ShieldCheck, Sigma, Sparkles, Sun, X, Laptop, Languages, LockKeyhole, Mail } from 'lucide-react';
 import { api } from './api.js';
 import Nyani from './Nyani.jsx';
 import AiQuiz from './AiQuiz.jsx';
@@ -125,13 +125,16 @@ function App() {
         <button className="mobile-menu" aria-label="Toggle menu" aria-expanded={menu} aria-controls="mobile-navigation" onClick={() => setMenu(!menu)}>{menu ? <X/> : <Menu/>}</button>
       </div>
     </header>
-    {menu && <nav className="mobile-dropdown" id="mobile-navigation" aria-label="Mobile navigation">
-      {dashboardFeatures.map(feature=>{
-        const FeatureIcon=feature.icon;
-        return <Link key={feature.title} to={feature.href} onClick={()=>setMenu(false)}><FeatureIcon size={20} aria-hidden="true"/><span>{feature.title}</span></Link>;
-      })}
-      {user ? <Link to="/learn?type=note" onClick={() => setMenu(false)}>Notes</Link> : <Link to="/login" onClick={() => setMenu(false)}>Log in</Link>}
-    </nav>}
+    {menu && <>
+      <button className="mobile-menu-backdrop" type="button" aria-label="Close navigation menu" onClick={()=>setMenu(false)}/>
+      <nav className="mobile-dropdown" id="mobile-navigation" aria-label="Mobile navigation">
+        {dashboardFeatures.map(feature=>{
+          const FeatureIcon=feature.icon;
+          return <Link key={feature.title} to={feature.href} onClick={()=>setMenu(false)}><FeatureIcon size={20} aria-hidden="true"/><span>{feature.title}</span></Link>;
+        })}
+        {!user && <Link to="/login" onClick={()=>setMenu(false)}><LogIn size={20} aria-hidden="true"/><span>Log in</span></Link>}
+      </nav>
+    </>}
     <Routes><Route path="/" element={<Navigate to="/learn?type=note" replace/>}/><Route path="/login" element={<Auth mode="login" onLogin={login}/>}/><Route path="/register" element={<Auth mode="register" onLogin={login}/>}/><Route path="/forgot-password" element={<Auth mode="forgot" onLogin={login}/>}/><Route path="/dashboard" element={<Navigate to="/learn?type=note" replace/>}/><Route path="/learn" element={user ? <Learn user={user}/> : <Auth mode="login" onLogin={login}/>}/><Route path="/nyani" element={user ? <Nyani/> : <Auth mode="login" onLogin={login}/>}/><Route path="/admin" element={user?.role === 'admin' ? <Admin/> : <Auth mode="login" onLogin={login}/>}/><Route path="*" element={<Navigate to="/learn?type=note" replace/>}/></Routes>
     <footer className="footer"><Link to="/" className="brand"><span className="brand-symbol"><span></span><span></span><span></span></span><span>yaza<span className="brand-light">med</span></span></Link><span>A clearer path to medical school.</span><span>Made for Malawi 🇲🇼</span></footer></div>;
 }
@@ -315,7 +318,6 @@ function Dashboard({user}) {
       <NavLink to="/learn?type=ai-quiz"><Brain size={20}/> AI study quiz</NavLink>
       <NavLink to="/nyani"><Sparkles size={20}/> Study resources</NavLink>
       <small>ACCOUNT</small>
-      <Link to="/learn?view=materials"><GraduationCap size={20}/> My subjects</Link>
       {user.role==='admin'&&<NavLink to="/admin"><ShieldCheck size={20}/> Admin studio</NavLink>}
       <div className="side-user"><span className="user-avatar" aria-hidden="true">{firstName.slice(0,1).toUpperCase()}</span><span><b>{user.name}</b><small>{user.role==='admin'?'Administrator':'Student'}</small></span></div>
     </aside>
@@ -336,7 +338,7 @@ function Dashboard({user}) {
       <section className="stat-grid dashboard-stats" aria-label="Your learning at a glance">
         {loading?<div className="loading-row dashboard-progress-loading" role="status">Loading your progress…</div>:<>
           <article className="stat-card"><span className="stat-label">PRACTICE ACCURACY</span><b>{score}%</b><span>{data.attempts?.length?`${data.attempts.length} practice sessions completed`:'Your first practice session is a great place to start'}</span><div className="stat-meter" role="progressbar" aria-label="Average practice accuracy" aria-valuemin="0" aria-valuemax="100" aria-valuenow={score}><i style={{width:`${score}%`}}/></div></article>
-          <article className="stat-card"><span className="stat-label">SAVED FOR LATER</span><b>{data.bookmarks?.length||0}</b><span>Learning resources on your reading list</span><Link to="/learn?view=materials" className="stat-foot"><Bookmark size={18}/> Browse learning materials</Link></article>
+          <article className="stat-card"><span className="stat-label">SAVED FOR LATER</span><b>{data.bookmarks?.length||0}</b><span>Learning resources on your reading list</span><Link to="/learn?type=note" className="stat-foot"><Bookmark size={18}/> Browse notes</Link></article>
           <article className="stat-card goal-stat"><span className="stat-label">TODAY’S INTENTION</span><b>One good session.</b><span>Choose something small and make it yours.</span><Link to="/learn" className="stat-foot">Choose a study activity <ArrowRight size={18}/></Link></article>
         </>}
       </section>
@@ -444,7 +446,6 @@ function NotesLibrary({user}) {
         ? <NavLink key={section.slug} to="/nyani"><section.icon size={17}/>Nyani library</NavLink>
         : <Link key={section.slug} to={`/learn?type=${section.slug}`} className={section.slug==='note'?'active':''}><section.icon size={17}/>{section.small}</Link>)}
       <small>ACCOUNT</small>
-      <Link to="/learn?view=materials"><GraduationCap size={17}/> My subjects</Link>
       <div className="side-user"><span className="user-avatar">{user.name?.slice(0,1).toUpperCase()}</span><span><b>{user.name}</b><small>Student</small></span></div>
     </aside>
     <section className="workspace-main learn-main">
@@ -484,14 +485,26 @@ function NotesLibrary({user}) {
 }
 
 function LearningFeatureDirectory({user}) {
-  return <main className="workspace"><aside className="side-nav" aria-label="Learning space navigation"><Link to="/dashboard" className="side-brand"><span className="brand-symbol" aria-hidden="true"><span></span><span></span><span></span></span> yaza<span>med</span></Link><small>YOUR SPACE</small><NavLink to="/dashboard"><LayoutDashboard size={20}/> Overview</NavLink>{sections.map(section=><NavLink key={section.slug} to={learningFeatureHref(section.slug)}><section.icon size={20}/>{section.small}</NavLink>)}<small>ACCOUNT</small><Link to="/dashboard#subjects"><GraduationCap size={20}/> My subjects</Link><div className="side-user"><span className="user-avatar">{user.name?.slice(0,1).toUpperCase()}</span><span><b>{user.name}</b><small>Student</small></span></div></aside><section className="workspace-main learn-main"><div className="learn-heading"><div className="eyebrow muted">A GOOD PLACE TO BEGIN</div><h1>Explore learning<i>.</i></h1><p>Choose a feature to start studying. You can also browse all published materials.</p></div><div className="material-grid learning-feature-grid">{sections.map(section=><Link className="material-card learning-feature-card" key={section.slug} to={learningFeatureHref(section.slug)}><div className="material-card-top"><span className="material-type">{section.label}</span><span className={`feature-icon ${section.tint}`}><section.icon size={22}/></span></div><h3>{section.name}</h3><p>{section.desc}</p><div className="material-card-foot"><span>Open feature</span><ArrowRight size={18}/></div></Link>)}<Link className="material-card learning-feature-card" to="/learn?view=materials"><div className="material-card-top"><span className="material-type">STUDY LIBRARY</span><span className="feature-icon tint-lime"><BookOpen size={22}/></span></div><h3>Browse all materials</h3><p>Search published lessons, notes, and high-yield resources across subjects.</p><div className="material-card-foot"><span>Explore materials</span><ArrowRight size={18}/></div></Link></div></section></main>;
+  return <main className="workspace">
+    <aside className="side-nav" aria-label="Learning space navigation">
+      <Link to="/dashboard" className="side-brand"><span className="brand-symbol" aria-hidden="true"><span></span><span></span><span></span></span> yaza<span>med</span></Link>
+      <small>YOUR SPACE</small>
+      <NavLink to="/dashboard"><LayoutDashboard size={20}/> Overview</NavLink>
+      {sections.map(section=><NavLink key={section.slug} to={learningFeatureHref(section.slug)}><section.icon size={20}/>{section.small}</NavLink>)}
+      <div className="side-user"><span className="user-avatar">{user.name?.slice(0,1).toUpperCase()}</span><span><b>{user.name}</b><small>Student</small></span></div>
+    </aside>
+    <section className="workspace-main learn-main">
+      <div className="learn-heading"><div className="eyebrow muted">A GOOD PLACE TO BEGIN</div><h1>Explore learning<i>.</i></h1><p>Choose a feature to start studying.</p></div>
+      <div className="material-grid learning-feature-grid">{sections.map(section=><Link className="material-card learning-feature-card" key={section.slug} to={learningFeatureHref(section.slug)}><div className="material-card-top"><span className="material-type">{section.label}</span><span className={`feature-icon ${section.tint}`}><section.icon size={22}/></span></div><h3>{section.name}</h3><p>{section.desc}</p><div className="material-card-foot"><span>Open feature</span><ArrowRight size={18}/></div></Link>)}</div>
+    </section>
+  </main>;
 }
 
 function Learn({user}) {
   const [params,setParams]=useSearchParams(); const type=params.get('type')||''; const initialSubject=params.get('subject')||''; const view=params.get('view')||''; const showFeatureDirectory=!type&&!initialSubject&&view!=='materials';
   const [subject,setSubject]=useState(initialSubject); const [items,setItems]=useState([]); const [noteGroups,setNoteGroups]=useState([]); const [questions,setQuestions]=useState([]); const [loading,setLoading]=useState(true); const [error,setError]=useState(''); const [loadError,setLoadError]=useState(false); const [reload,setReload]=useState(0); const [q,setQ]=useState(''); const [page,setPage]=useState(1); const [responses,setResponses]=useState({}); const [result,setResult]=useState(null); const [detail,setDetail]=useState(null); const [saved,setSaved]=useState({});
   useEffect(()=>{
-    if(showFeatureDirectory||type==='note'||type==='ai-quiz'||type==='quick-lesson')return;
+    if(showFeatureDirectory||view==='materials'||type==='note'||type==='ai-quiz'||type==='quick-lesson')return;
     let live=true;
     setLoading(true);
     setError('');
@@ -520,7 +533,7 @@ function Learn({user}) {
     };
     fetch();
     return()=>{live=false;};
-  },[showFeatureDirectory,type,subject,page,q,reload]);
+  },[showFeatureDirectory,view,type,subject,page,q,reload]);
   const title=type==='note'?'Notes library':type==='high-yield'?'Nyani & high-yield':type==='practice'?'Practice questions':'Explore learning';
   const chooseType=t=>{setParams(t?{type:t}:{view:'materials'});setPage(1);setResponses({});setResult(null);};
   const submit=async()=>{try{const {data}=await api.post('/attempts',{mode:'practice',responses:Object.entries(responses).map(([question,answer])=>({question,answer}))});setResult(data);}catch(e){setError(e.response?.data?.message||'Your answers could not be submitted.');}};
@@ -547,7 +560,8 @@ function Learn({user}) {
     }catch(e){popup?.close();setError(e.response?.data?.message||e.message||'Could not open this note online.');}
   };
   const downloadStorageNote=async file=>{try{const {data}=await api.get('/notes/link',{params:{path:file.path,download:'1'}});const link=document.createElement('a');link.href=data.url;link.download=file.name;link.rel='noreferrer';document.body.appendChild(link);link.click();link.remove();}catch(e){setError(e.response?.data?.message||'Could not download this note.');}};
-  if(type==='quick-lesson')return <Navigate to="/learn?view=materials" replace/>;
+  if(view==='materials')return null;
+  if(type==='quick-lesson')return <Navigate to="/learn?type=note" replace/>;
   if(showFeatureDirectory)return <LearningFeatureDirectory user={user}/>;
   if(type==='note')return <NotesLibrary user={user}/>;
   if(type==='ai-quiz')return <AiQuiz user={user}/>;

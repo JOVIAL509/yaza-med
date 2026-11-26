@@ -88,7 +88,6 @@ export default function AiQuiz({user}) {
       <NavLink to="/learn?type=practice"><Brain size={17}/> Practice</NavLink>
       <NavLink to="/nyani"><Sparkles size={17}/> Nyani library</NavLink>
       <small>ACCOUNT</small>
-      <Link to="/learn?view=materials"><BookOpen size={17}/> My subjects</Link>
       <div className="side-user"><span className="user-avatar">{user.name?.slice(0,1).toUpperCase()}</span><span><b>{user.name}</b><small>Student</small></span></div>
     </aside>
     <section className="workspace-main learn-main ai-quiz-main">
