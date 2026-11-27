@@ -161,6 +161,17 @@ function Dashboard({ user, onSignOut }) {
   const [recentNotes, setRecentNotes] = useState([]);
   const [subjectsData, setSubjectsData] = useState([]);
   const [resources, setResources] = useState([]);
+  const [notesError, setNotesError] = useState('');
+  const [paperFiles, setPaperFiles] = useState([]);
+  const [paperSubject, setPaperSubject] = useState('All subjects');
+  const [paperSemester, setPaperSemester] = useState('ALL');
+  const [paperSearch, setPaperSearch] = useState('');
+  const [practiceQuestion, setPracticeQuestion] = useState(null);
+  const [loadingQuestion, setLoadingQuestion] = useState(true);
+  const [selectedOption, setSelectedOption] = useState(null);
+  const [quickResult, setQuickResult] = useState(null);
+  const [quickError, setQuickError] = useState('');
+  const [submittingAnswer, setSubmittingAnswer] = useState(false);
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -169,13 +180,14 @@ function Dashboard({ user, onSignOut }) {
   useEffect(() => {
     try { setRecentNotes(JSON.parse(localStorage.getItem(RECENT_NOTES_KEY) || '[]')); } catch { setRecentNotes([]); }
     let live = true;
-    Promise.allSettled([api.get('/progress'), api.get('/subjects'), api.get('/notes')]).then(results => {
-      if (!live) return;
-      if (results[0].status === 'fulfilled') setProgress(results[0].value.data);
-      else setError(results[0].reason.response?.data?.message || 'Progress details could not be loaded right now.');
-      if (results[1].status === 'fulfilled') setSubjectsData(results[1].value.data);
-      if (results[2].status === 'fulfilled') setResources((results[2].value.data || []).flatMap(group => (group.files || []).map(file => ({ ...file, subjectSlug: group.slug }))).slice(0, 4));
-    });
+    fetch('/nyani/manifest.json').then(response => {
+      if (!response.ok) throw new Error('Past-paper catalogue could not be loaded.');
+      return response.json();
+    }).then(data => { if (live) setPaperFiles(data); }).catch(() => {});
+    api.get('/progress').then(({data})=>{if(live)setProgress(data);}).catch(e=>{if(live)setError(e.response?.data?.message||'Progress details could not be loaded right now.');});
+    api.get('/subjects').then(({data})=>{if(live)setSubjectsData(data);}).catch(()=>{});
+    api.get('/notes').then(({data})=>{if(live)setResources((data||[]).flatMap(group=>(group.files||[]).map(file=>({...file,subjectSlug:group.slug}))).slice(0,4));}).catch(e=>{if(live)setNotesError(e.response?.data?.message||'The notes service could not be reached.');});
+    api.get('/questions',{params:{limit:10}}).then(({data})=>{if(live)setPracticeQuestion(data?.[0]||null);}).catch(e=>{if(live)setQuickError(e.response?.data?.message||'Practice questions could not be loaded.');}).finally(()=>{if(live)setLoadingQuestion(false);});
     return () => { live = false; };
   }, []);
 
@@ -183,7 +195,27 @@ function Dashboard({ user, onSignOut }) {
   const totalAnswered = attempts.reduce((sum, attempt) => sum + (attempt.total || 0), 0);
   const totalCorrect = attempts.reduce((sum, attempt) => sum + (attempt.score || 0), 0);
   const averageScore = totalAnswered ? Math.round(totalCorrect / totalAnswered * 100) : null;
+  const paperSubjects = [...new Set(paperFiles.map(file => file.subject))];
+  const visiblePapers = paperFiles.filter(file =>
+    (paperSubject === 'All subjects' || file.subject === paperSubject) &&
+    (paperSemester === 'ALL' || file.semester === paperSemester) &&
+    (!paperSearch.trim() || `${file.title} ${file.subject} ${file.semester} ${file.originalName}`.toLowerCase().includes(paperSearch.trim().toLowerCase()))
+  );
   const submitSearch = event => { event.preventDefault(); navigate(`/learn?type=note&q=${encodeURIComponent(query.trim())}`); };
+  const submitQuickAnswer = async () => {
+    if (!practiceQuestion || selectedOption === null) return;
+    setSubmittingAnswer(true);
+    setQuickError('');
+    try {
+      const { data } = await api.post('/attempts', { mode: 'practice', responses: [{ question: practiceQuestion._id, answer: selectedOption }] });
+      setQuickResult(data);
+      api.get('/progress').then(latestProgress => setProgress(latestProgress.data)).catch(() => {});
+    } catch (e) {
+      setQuickError(e.response?.data?.message || 'Your answer could not be saved. Please try again.');
+    } finally {
+      setSubmittingAnswer(false);
+    }
+  };
   const links = [
     { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, active: true },
     { label: 'Notes', href: '/learn?type=note', icon: BookOpen },
@@ -212,6 +244,27 @@ function Dashboard({ user, onSignOut }) {
           <Link className="dashboard-action-card action-papers" to="/nyani"><span className="dashboard-action-icon"><FileText size={22}/></span><b>Browse past papers</b><span>Find revision files by subject and exam section.</span><strong>Open Nyani library <ArrowRight size={16}/></strong></Link>
         </div>
       </section>
+      <section className="dashboard-content-grid dashboard-live-study">
+        <div className="dashboard-panel dashboard-question-panel"><div className="dashboard-section-title"><div><div className="eyebrow muted">A QUICK PRACTICE</div><h2>Try a question now</h2></div><CircleHelp size={19}/></div>
+          {loadingQuestion ? <p className="dashboard-muted">Loading a published question…</p> : practiceQuestion ? <>
+            <p className="dashboard-question-prompt">{practiceQuestion.prompt}</p>
+            <div className="dashboard-option-list">{(practiceQuestion.options||[]).map((option,index)=><button type="button" key={index} disabled={Boolean(quickResult)} className={`${selectedOption===index?'selected':''}${quickResult&&quickResult.explanations?.[0]?.answer===index?' correct':''}`} onClick={()=>setSelectedOption(index)}><span>{String.fromCharCode(65+index)}</span>{option}</button>)}</div>
+            {quickResult&&<div className={`dashboard-question-feedback ${quickResult.explanations?.[0]?.correct?'is-correct':'is-incorrect'}`} role="status"><b>{quickResult.explanations?.[0]?.correct?'Correct':'Review this answer'} · {quickResult.attempt.score}/{quickResult.attempt.total}</b><span>{quickResult.explanations?.[0]?.explanation}</span></div>}
+            {quickError&&<div className="error-message" role="alert">{quickError}</div>}
+            {!quickResult?<button className="button-primary dashboard-answer-button" disabled={selectedOption===null||submittingAnswer} onClick={submitQuickAnswer}>{submittingAnswer?'Saving answer…':'Check answer'} <ArrowRight size={15}/></button>:<Link to="/learn?type=practice" className="dashboard-panel-link">Keep practising <ArrowRight size={15}/></Link>}
+          </> : <div className="dashboard-no-question"><p>{quickError||'There are no published MCQs to show here yet.'}</p><Link to="/learn?type=practice" className="button-outline">Open practice questions <ArrowRight size={15}/></Link></div>}
+        </div>
+        <div className="dashboard-panel dashboard-papers-panel"><div className="dashboard-section-title"><div><div className="eyebrow muted">READY TO STUDY</div><h2>Past papers & revision</h2></div><span className="dashboard-paper-total">{paperFiles.length} files</span></div>
+          <div className="dashboard-paper-filters"><label><Search size={16}/><input aria-label="Search past papers" placeholder="Search the paper library" value={paperSearch} onChange={event=>setPaperSearch(event.target.value)}/></label><select aria-label="Filter papers by subject" value={paperSubject} onChange={event=>setPaperSubject(event.target.value)}><option>All subjects</option>{paperSubjects.map(subject=><option key={subject}>{subject}</option>)}</select><select aria-label="Filter papers by exam section" value={paperSemester} onChange={event=>setPaperSemester(event.target.value)}><option value="ALL">All exams</option><option value="MIDSEM">Midsem</option><option value="ENDSEM">End sem</option></select></div>
+          {visiblePapers.length ? <div className="dashboard-paper-list">{visiblePapers.slice(0,4).map(file=>{
+            const officeFile=file.type==='office';
+            const fileUrl=new URL(file.path,window.location.origin).toString();
+            const viewUrl=officeFile?createOfficeViewerUrl(fileUrl):fileUrl;
+            return <article className="dashboard-paper-item" key={file.id}><span className="dashboard-paper-icon">{file.type==='image'?<img src={file.path} alt="" loading="lazy"/>:<FileText size={19}/>}</span><span className="dashboard-paper-info"><b>{file.title}</b><small>{file.subject} · {file.semester==='MIDSEM'?'Midsem':'End sem'} · {file.extension.replace('.','').toUpperCase()}</small></span><a className="dashboard-paper-view" href={viewUrl} target="_blank" rel="noreferrer">View</a></article>;
+          })}</div> : <p className="dashboard-muted">No papers match those filters. Try another subject or exam section.</p>}
+          <Link to="/nyani" className="dashboard-panel-link">Browse the full past-paper library <ArrowRight size={15}/></Link>
+        </div>
+      </section>
       <section className="dashboard-content-grid">
         <div className="dashboard-panel" id="progress"><div className="dashboard-section-title"><div><div className="eyebrow muted">YOUR ACTIVITY</div><h2>Progress so far</h2></div><BarChart3 size={19}/></div>
           {progress ? <div className="progress-metrics"><div><strong>{attempts.length}</strong><span>recent practice sessions</span></div><div><strong>{totalAnswered}</strong><span>questions answered</span></div><div><strong>{averageScore===null?'—':`${averageScore}%`}</strong><span>accuracy in recent sessions</span></div></div> : <p className="dashboard-muted">Your practice activity will appear here when you complete a question set.</p>}
@@ -227,7 +280,7 @@ function Dashboard({ user, onSignOut }) {
           {subjectsData.length ? <div className="dashboard-subject-list">{subjectsData.slice(0,6).map((item,index)=>{const meta=subjects.find(subject=>subject.name===item.title);const Icon=meta?.icon||BookOpen;return <Link key={item._id||item.slug} to={`/learn?type=note&subject=${encodeURIComponent(item.slug||item.title)}`}><span className={`subject-icon ${meta?.color||'blue'}`}><Icon size={18}/></span><b>{item.title}</b><span>{String(index+1).padStart(2,'0')}</span><ArrowRight size={15}/></Link>;})}</div> : <p className="dashboard-muted">Published subjects will appear here when they are available.</p>}
         </div>
         <div className="dashboard-panel dashboard-resource-panel"><div className="dashboard-section-title"><div><div className="eyebrow muted">STUDY MATERIALS</div><h2>Available study notes</h2></div></div>
-          {resources.length ? <div className="dashboard-resource-list">{resources.slice(0,3).map(item=><Link key={item.path} to={`/learn?type=note&subject=${encodeURIComponent(item.subjectSlug)}`}><span className="recent-file-icon"><BookOpen size={18}/></span><span><b>{item.name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ')}</b><small>{item.subject}{item.topic?` · ${item.topic}`:''}</small></span><ArrowRight size={16}/></Link>)}</div> : <p className="dashboard-muted">Browse the notes library to see available course files, or use the Nyani past-paper library.</p>}
+          {resources.length ? <div className="dashboard-resource-list">{resources.slice(0,3).map(item=><Link key={item.path} to={`/learn?type=note&subject=${encodeURIComponent(item.subjectSlug)}`}><span className="recent-file-icon"><BookOpen size={18}/></span><span><b>{item.name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ')}</b><small>{item.subject}{item.topic?` · ${item.topic}`:''}</small></span><ArrowRight size={16}/></Link>)}</div> : <p className="dashboard-muted">{notesError?`Notes are temporarily unavailable. ${notesError}`:'No study files are listed yet.'} <Link to="/learn?type=note">Open notes library</Link></p>}
         </div>
       </section>
       <section className="dashboard-coming-soon"><span><Sparkles size={19}/></span><div><b>Quick Lessons</b><p>This feature is not available yet. For a short study session, try a practice set or create an AI quiz from your notes.</p></div><Link to="/learn?type=practice">Try practice <ArrowRight size={15}/></Link></section>

@@ -469,6 +469,174 @@
 
 .dashboard-mobile-nav { display: none; }
 
+.dashboard-live-study {
+  align-items: start;
+  margin-top: 8px;
+}
+
+.dashboard-question-prompt {
+  margin: 7px 0 14px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.dashboard-option-list {
+  display: grid;
+  gap: 7px;
+}
+
+.dashboard-option-list button {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.dashboard-option-list button:hover:not(:disabled),
+.dashboard-option-list button.selected {
+  border-color: #8fa77e;
+  background: #f1f5ec;
+}
+
+.dashboard-option-list button > span {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 23px;
+  height: 23px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: #54734f;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dashboard-option-list button.correct {
+  border-color: #72a078;
+  background: #edf6ed;
+}
+
+.dashboard-question-feedback {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0;
+  padding: 11px 12px;
+  border-radius: 8px;
+  background: #edf6ed;
+  color: #315d3b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.dashboard-question-feedback.is-incorrect {
+  background: #f8eee9;
+  color: #80503e;
+}
+
+.dashboard-answer-button { margin-top: 12px; min-height: 43px; font-size: 14px; }
+.dashboard-no-question { display: grid; justify-items: start; gap: 10px; }
+.dashboard-no-question p { margin: 10px 0 0; color: var(--muted); font-size: 14px; }
+
+.dashboard-paper-total {
+  flex: none;
+  padding: 5px 9px;
+  border-radius: 20px;
+  background: #eef3e8;
+  color: #4f704a;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dashboard-paper-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 130px 112px;
+  gap: 7px;
+  margin: 14px 0;
+}
+
+.dashboard-paper-filters > label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--muted);
+}
+
+.dashboard-paper-filters input,
+.dashboard-paper-filters select {
+  width: 100%;
+  min-width: 0;
+  height: 39px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.dashboard-paper-filters input { border: 0; outline: 0; }
+.dashboard-paper-filters select { padding: 0 7px; }
+
+.dashboard-paper-list {
+  display: grid;
+}
+
+.dashboard-paper-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.dashboard-paper-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  border-radius: 7px;
+  background: var(--bg);
+  color: #668050;
+}
+
+.dashboard-paper-icon img { width: 100%; height: 100%; object-fit: cover; }
+.dashboard-paper-info { display: grid; flex: 1; min-width: 0; gap: 3px; }
+.dashboard-paper-info b { overflow: hidden; color: var(--ink); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.dashboard-paper-info small { color: var(--muted); font-size: 11px; }
+
+.dashboard-paper-view {
+  flex: none;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: #174b43;
+  color: white;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+[data-theme="dark"] .dashboard-paper-total,
+[data-theme="dark"] .dashboard-option-list button:hover:not(:disabled),
+[data-theme="dark"] .dashboard-option-list button.selected {
+  background: #2b3c30;
+  color: var(--ink);
+}
+
 [data-theme="dark"] .dashboard-real-welcome,
 [data-theme="dark"] .dashboard-coming-soon {
   border-color: var(--line);
@@ -542,6 +710,8 @@
   .dashboard-section-title h2 { font-size: 19px; }
   .dashboard-content-grid,
   .dashboard-lower-grid { grid-template-columns: 1fr; }
+  .dashboard-paper-filters { grid-template-columns: 1fr 1fr; }
+  .dashboard-paper-filters > label { grid-column: 1 / -1; }
   .dashboard-panel { padding: 16px; }
   .progress-metrics { gap: 6px; }
   .progress-metrics > div { min-height: 70px; padding: 8px; }
