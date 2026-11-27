@@ -228,7 +228,7 @@ function Dashboard({ user, onSignOut }) {
       <Link to="/dashboard" className="side-brand"><span className="brand-symbol" aria-hidden="true"><span></span><span></span><span></span></span> yaza<span>med</span></Link>
       <small>YOUR SPACE</small>
       {links.map(({label,href,icon:Icon,active})=><NavLink key={label} to={href} end={active} className={active?'side-active':undefined}><Icon size={19}/>{label}</NavLink>)}
-      <a href="#progress" className="dashboard-progress-link"><ChartNoAxesColumnIncreasing size={19}/>Your progress</a>
+      <a href="#progress" className="dashboard-progress-link"><BarChart3 size={19}/>Your progress</a>
       <div className="dashboard-nav-bottom"><div className="side-user"><span className="user-avatar">{user.name?.slice(0,1).toUpperCase()}</span><span><b>{user.name}</b><small>{user.email}</small></span></div><button className="dashboard-signout" onClick={onSignOut}><LogOut size={17}/> Sign out</button></div>
     </aside>
     <section className="workspace-main dashboard-main">
