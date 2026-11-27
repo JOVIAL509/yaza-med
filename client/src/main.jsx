@@ -6,4 +6,5 @@ import './styles.css';
 import './auth.css';
 import './nyani.css';
 import './redesign.css';
+import './dashboard.css';
 createRoot(document.getElementById('root')).render(<React.StrictMode><BrowserRouter><App /></BrowserRouter></React.StrictMode>);

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Activity, ArrowDownRight, ArrowLeft, ArrowRight, Atom, BookOpen, Bookmark, Brain, Check, ChevronDown, CircleHelp, FlaskConical, GraduationCap, LayoutDashboard, LogIn, Menu, Moon, Search, ShieldCheck, Sigma, Sparkles, Sun, X, Laptop, Languages, LockKeyhole, Mail } from 'lucide-react';
+import { Activity, ArrowDownRight, ArrowLeft, ArrowRight, Atom, BookOpen, Bookmark, Brain, Check, ChevronDown, CircleHelp, FlaskConical, GraduationCap, LayoutDashboard, LogIn, Menu, Moon, Search, ShieldCheck, Sigma, Sparkles, Sun, X, Laptop, Languages, LockKeyhole, Mail, Clock3, FileText, BarChart3, LogOut } from 'lucide-react';
 import { api } from './api.js';
 import Nyani from './Nyani.jsx';
 import AiQuiz from './AiQuiz.jsx';
@@ -121,7 +121,7 @@ function App() {
       </nav>
       <div className="top-actions">
         <button className="theme-btn" aria-label="Toggle theme" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>{theme === 'light' ? <Moon size={20}/> : <Sun size={20}/>}</button>
-        {user ? <><Link className="top-login" to="/learn?type=note">Notes</Link><button className="top-signup" onClick={signOut}>Sign out</button></> : <><Link className="top-login" to="/login">Log in</Link><Link className="top-signup" to="/register">Get started <ArrowRight size={18}/></Link></>}
+        {user ? <><Link className="top-login" to="/dashboard">Dashboard</Link><button className="top-signup" onClick={signOut}>Sign out</button></> : <><Link className="top-login" to="/login">Log in</Link><Link className="top-signup" to="/register">Get started <ArrowRight size={18}/></Link></>}
         <button className="mobile-menu" aria-label="Toggle menu" aria-expanded={menu} aria-controls="mobile-navigation" onClick={() => setMenu(!menu)}>{menu ? <X/> : <Menu/>}</button>
       </div>
     </header>
@@ -135,16 +135,105 @@ function App() {
         {!user && <Link to="/login" onClick={()=>setMenu(false)}><LogIn size={20} aria-hidden="true"/><span>Log in</span></Link>}
       </nav>
     </>}
-    <Routes><Route path="/" element={<Navigate to="/learn?type=note" replace/>}/><Route path="/login" element={<Auth mode="login" onLogin={login}/>}/><Route path="/register" element={<Auth mode="register" onLogin={login}/>}/><Route path="/forgot-password" element={<Auth mode="forgot" onLogin={login}/>}/><Route path="/dashboard" element={<Navigate to="/learn?type=note" replace/>}/><Route path="/learn" element={user ? <Learn user={user}/> : <Auth mode="login" onLogin={login}/>}/><Route path="/nyani" element={user ? <Nyani/> : <Auth mode="login" onLogin={login}/>}/><Route path="/admin" element={user?.role === 'admin' ? <Admin/> : <Auth mode="login" onLogin={login}/>}/><Route path="*" element={<Navigate to="/learn?type=note" replace/>}/></Routes>
+    <Routes><Route path="/" element={<Home user={user}/>}/><Route path="/login" element={<Auth mode="login" onLogin={login}/>}/><Route path="/register" element={<Auth mode="register" onLogin={login}/>}/><Route path="/forgot-password" element={<Auth mode="forgot" onLogin={login}/>}/><Route path="/dashboard" element={user ? <Dashboard user={user} onSignOut={signOut}/> : <Auth mode="login" onLogin={login}/>}/><Route path="/learn" element={user ? <Learn user={user}/> : <Auth mode="login" onLogin={login}/>}/><Route path="/nyani" element={user ? <Nyani/> : <Auth mode="login" onLogin={login}/>}/><Route path="/admin" element={user?.role === 'admin' ? <Admin/> : <Auth mode="login" onLogin={login}/>}/><Route path="*" element={<Navigate to="/" replace/>}/></Routes>
     <footer className="footer"><Link to="/" className="brand"><span className="brand-symbol"><span></span><span></span><span></span></span><span>yaza<span className="brand-light">med</span></span></Link><span>A clearer path to medical school.</span><span>Made for Malawi 🇲🇼</span></footer></div>;
 }
 
 function Home({ user }) {
-  return <><main><section className="hero"><div className="hero-copy"><div className="eyebrow"><span className="pulse"></span> A new way to prepare for what’s next</div><h1>Your future in<br/>medicine starts <i>here.</i></h1><p className="hero-sub">A clearer, more confident way to prepare for medical school. Learn at your pace, practise with purpose, and see how far you’ve come.</p><div className="hero-cta"><Link to={user ? '/dashboard' : '/register'} className="button-primary">Start learning <ArrowRight size={16}/></Link><a href="#how" className="button-text">Explore the platform <ArrowDownRight size={15}/></a></div><div className="hero-proof"><div className="avatar-stack"><b>JM</b><b>TM</b><b>CK</b><b>+</b></div><span><strong>Built for the way you learn</strong><br/>Steady progress, one day at a time</span></div></div><div className="hero-visual"><div className="visual-backdrop"></div><div className="floating-pill"><span className="pill-icon"><Activity size={15}/></span><span><b>Small steps add up</b><small>Your learning, in motion</small></span><span className="pill-check"><Check size={13}/></span></div><div className="study-card"><div className="study-top"><span className="study-kicker">TODAY’S FOCUS</span><span className="study-dot"><span></span><span></span><span></span></span></div><div className="study-subject"><div className="tiny-subject-icon"><Brain size={18}/></div><div><b>Human physiology</b><small>Biology · 12 min read</small></div><span className="study-arrow"><ArrowRight size={15}/></span></div><div className="study-rule"></div><div className="study-progress-label"><span>WEEKLY GOAL</span><b>4 of 5 days</b></div><div className="week-bars"><div><i className="done"></i><small>M</small></div><div><i className="done"></i><small>T</small></div><div><i className="done"></i><small>W</small></div><div><i className="today"></i><small>T</small></div><div><i></i><small>F</small></div><div><i></i><small>S</small></div><div><i></i><small>S</small></div></div><div className="study-footer"><span><span className="green-star">✦</span> Nice rhythm — keep it going</span><span className="study-streak">4 day streak <span>↗</span></span></div></div><div className="visual-stamp"><div>Learn<br/>with<br/><i>purpose.</i></div><span>Y · M</span></div><div className="visual-leaf leaf-a">✳</div><div className="visual-leaf leaf-b">✣</div></div></section>
+  return <><main><section className="hero"><div className="hero-copy"><div className="eyebrow"><span className="pulse"></span> A new way to prepare for what’s next</div><h1>Your future in<br/>medicine starts <i>here.</i></h1><p className="hero-sub">A clearer, more confident way to prepare for medical school. Learn at your pace, practise with purpose, and see how far you’ve come.</p><div className="hero-cta"><Link to={user ? '/dashboard' : '/register'} className="button-primary">Start learning <ArrowRight size={16}/></Link><a href="#how" className="button-text">Explore the platform <ArrowDownRight size={15}/></a></div><div className="hero-proof"><div className="avatar-stack"><b>JM</b><b>TM</b><b>CK</b><b>+</b></div><span><strong>Built for the way you learn</strong><br/>Steady progress, one day at a time</span></div></div><div className="hero-visual"><div className="visual-backdrop"></div><div className="floating-pill"><span className="pill-icon"><Activity size={15}/></span><span><b>Small steps add up</b><small>Your learning, in motion</small></span><span className="pill-check"><Check size={13}/></span></div><div className="study-card"><div className="study-top"><span className="study-kicker">SAMPLE RESOURCE</span><span className="study-dot"><span></span><span></span><span></span></span></div><div className="study-subject"><div className="tiny-subject-icon"><Brain size={18}/></div><div><b>Human physiology</b><small>Biology · 12 min read</small></div><span className="study-arrow"><ArrowRight size={15}/></span></div><div className="study-rule"></div><div className="study-progress-label"><span>A STUDY ROUTINE</span><b>Choose your pace</b></div><div className="week-bars"><div><i className="done"></i><small>M</small></div><div><i className="done"></i><small>T</small></div><div><i className="done"></i><small>W</small></div><div><i className="today"></i><small>T</small></div><div><i></i><small>F</small></div><div><i></i><small>S</small></div><div><i></i><small>S</small></div></div><div className="study-footer"><span><span className="green-star">✦</span> Build a steady routine</span><span className="study-streak">Your pace, your plan <span>↗</span></span></div></div><div className="visual-stamp"><div>Learn<br/>with<br/><i>purpose.</i></div><span>Y · M</span></div><div className="visual-leaf leaf-a">✳</div><div className="visual-leaf leaf-b">✣</div></div></section>
       <section className="trust-strip"><span>BUILT AROUND YOUR GOALS</span><div><i>Learn clearly</i><i>Practise confidently</i><i>Progress steadily</i></div><span>ONE GOOD SESSION AT A TIME ↗</span></section>
       <section className="section-block subjects-section" id="subjects"><div className="section-heading"><div><div className="eyebrow muted">YOUR FOUNDATION, COVERED</div><h2>Six subjects. <i>One clear path.</i></h2><p>Everything you need to build strong foundations, organized around how you actually study.</p></div><span className="section-index">01 <span>—</span> 06</span></div><div className="subject-grid">{subjects.map((s,i)=><Link key={s.name} to={user ? `/learn?subject=${s.name}` : '/register'} className="subject-card"><div className="subject-card-top"><span className={`subject-icon ${s.color}`}><s.icon size={19}/></span><span className="subject-number">0{i+1}</span></div><h3>{s.name}</h3><p>{s.topics}</p><span className="card-link">Explore subject <ArrowRight size={14}/></span></Link>)}</div></section>
       <section className="feature-section" id="how"><div className="feature-intro"><div className="eyebrow muted">A STUDY SPACE THAT GETS YOU</div><h2>Study your way.<br/><i>Make it count.</i></h2><p>From first concepts to final revision, the right tools make it easier to keep showing up.</p><Link to={user ? '/dashboard' : '/register'} className="text-link">Find your starting point <ArrowRight size={15}/></Link><div className="hand-note">No rush. Just forward. <span>↗</span></div></div><div className="feature-list">{sections.map((s,i)=><Link to={user ? s.slug === 'practice' ? '/learn?type=practice' : s.slug === 'high-yield' ? '/nyani' : `/learn?type=${s.slug}` : '/register'} className="feature-row" key={s.slug}><span className={`feature-icon ${s.tint}`}><s.icon size={19}/></span><span className="feature-copy"><small>0{i+1} / {s.label}</small><b>{s.name}</b><span>{s.desc}</span></span><span className="feature-arrow"><ArrowRight size={17}/></span></Link>)}</div></section>
       <section className="bottom-cta"><div className="cta-flower">✳</div><div><div className="eyebrow">YOUR NEXT CHAPTER STARTS SMALL</div><h2>A little progress goes<br/><i>a long way.</i></h2><p>Pick a subject. Find your rhythm. We’ll be here for the next step.</p><Link to={user ? '/dashboard' : '/register'} className="button-dark">{user ? 'Go to my dashboard' : 'Create your free account'} <ArrowRight size={16}/></Link></div><div className="cta-orbit"><div className="orbit-ring"></div><div className="orbit-center"><GraduationCap size={26}/></div><div className="orbit-note">Future<br/>doctor ↗</div><div className="orbit-dot"></div></div></section></main></>;
+}
+
+const RECENT_NOTES_KEY = 'yaza-recent-notes';
+function rememberNote(file, subject) {
+  try {
+    const previous = JSON.parse(localStorage.getItem(RECENT_NOTES_KEY) || '[]');
+    const next = [{ name: file.name, path: file.path, subject: subject?.title || 'Study notes', subjectSlug: subject?.slug || '', topic: file.topic || '', openedAt: Date.now() }, ...previous.filter(item => item.path !== file.path)].slice(0, 5);
+    localStorage.setItem(RECENT_NOTES_KEY, JSON.stringify(next));
+  } catch { /* Recent files are a convenience and never block opening a note. */ }
+}
+
+function Dashboard({ user, onSignOut }) {
+  const [progress, setProgress] = useState(null);
+  const [recentNotes, setRecentNotes] = useState([]);
+  const [subjectsData, setSubjectsData] = useState([]);
+  const [resources, setResources] = useState([]);
+  const [query, setQuery] = useState('');
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+  const firstName = user.name?.trim().split(/\s+/)[0] || 'there';
+
+  useEffect(() => {
+    try { setRecentNotes(JSON.parse(localStorage.getItem(RECENT_NOTES_KEY) || '[]')); } catch { setRecentNotes([]); }
+    let live = true;
+    Promise.allSettled([api.get('/progress'), api.get('/subjects'), api.get('/notes')]).then(results => {
+      if (!live) return;
+      if (results[0].status === 'fulfilled') setProgress(results[0].value.data);
+      else setError(results[0].reason.response?.data?.message || 'Progress details could not be loaded right now.');
+      if (results[1].status === 'fulfilled') setSubjectsData(results[1].value.data);
+      if (results[2].status === 'fulfilled') setResources((results[2].value.data || []).flatMap(group => (group.files || []).map(file => ({ ...file, subjectSlug: group.slug }))).slice(0, 4));
+    });
+    return () => { live = false; };
+  }, []);
+
+  const attempts = progress?.attempts || [];
+  const totalAnswered = attempts.reduce((sum, attempt) => sum + (attempt.total || 0), 0);
+  const totalCorrect = attempts.reduce((sum, attempt) => sum + (attempt.score || 0), 0);
+  const averageScore = totalAnswered ? Math.round(totalCorrect / totalAnswered * 100) : null;
+  const submitSearch = event => { event.preventDefault(); navigate(`/learn?type=note&q=${encodeURIComponent(query.trim())}`); };
+  const links = [
+    { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, active: true },
+    { label: 'Notes', href: '/learn?type=note', icon: BookOpen },
+    { label: 'Practice questions', href: '/learn?type=practice', icon: CircleHelp },
+    { label: 'AI study quiz', href: '/learn?type=ai-quiz', icon: Brain },
+    { label: 'Past papers', href: '/nyani', icon: FileText }
+  ];
+  return <main className="workspace dashboard-workspace">
+    <aside className="side-nav dashboard-nav" aria-label="Student navigation">
+      <Link to="/dashboard" className="side-brand"><span className="brand-symbol" aria-hidden="true"><span></span><span></span><span></span></span> yaza<span>med</span></Link>
+      <small>YOUR SPACE</small>
+      {links.map(({label,href,icon:Icon,active})=><NavLink key={label} to={href} end={active} className={active?'side-active':undefined}><Icon size={19}/>{label}</NavLink>)}
+      <a href="#progress" className="dashboard-progress-link"><ChartNoAxesColumnIncreasing size={19}/>Your progress</a>
+      <div className="dashboard-nav-bottom"><div className="side-user"><span className="user-avatar">{user.name?.slice(0,1).toUpperCase()}</span><span><b>{user.name}</b><small>{user.email}</small></span></div><button className="dashboard-signout" onClick={onSignOut}><LogOut size={17}/> Sign out</button></div>
+    </aside>
+    <section className="workspace-main dashboard-main">
+      <div className="dashboard-topline"><span>Student workspace</span><span className="dashboard-private"><ShieldCheck size={16}/> Your learning space is private</span></div>
+      <header className="dashboard-welcome dashboard-real-welcome"><div><div className="eyebrow muted">YOUR NEXT STEP STARTS HERE</div><h1>Good to see you, <i>{firstName}.</i></h1><p>Pick up where you left off or choose something to study today.</p></div><Link to="/learn?type=note" className="button-primary">Browse notes <ArrowRight size={17}/></Link></header>
+      <form className="dashboard-search" onSubmit={submitSearch}><Search size={20}/><input aria-label="Search study notes" placeholder="Search note titles or topics" value={query} onChange={event=>setQuery(event.target.value)}/><button type="submit">Search</button></form>
+      {error&&<div className="error-message" role="status">{error}</div>}
+      <section className="dashboard-actions-section" aria-labelledby="start-heading"><div className="dashboard-section-title"><div><div className="eyebrow muted">STUDY TOOLS</div><h2 id="start-heading">What would you like to do?</h2></div></div>
+        <div className="dashboard-action-grid">
+          <Link className="dashboard-action-card action-notes" to="/learn?type=note"><span className="dashboard-action-icon"><BookOpen size={22}/></span><b>Find study notes</b><span>Browse course materials by subject and topic.</span><strong>Browse notes <ArrowRight size={16}/></strong></Link>
+          <Link className="dashboard-action-card action-practice" to="/learn?type=practice"><span className="dashboard-action-icon"><CircleHelp size={22}/></span><b>Practise questions</b><span>Answer MCQs and review explanations.</span><strong>Start practising <ArrowRight size={16}/></strong></Link>
+          <Link className="dashboard-action-card action-ai" to="/learn?type=ai-quiz"><span className="dashboard-action-icon"><Brain size={22}/></span><b>Make an AI quiz</b><span>Generate a scored quiz from your own material.</span><strong>Create a quiz <ArrowRight size={16}/></strong></Link>
+          <Link className="dashboard-action-card action-papers" to="/nyani"><span className="dashboard-action-icon"><FileText size={22}/></span><b>Browse past papers</b><span>Find revision files by subject and exam section.</span><strong>Open Nyani library <ArrowRight size={16}/></strong></Link>
+        </div>
+      </section>
+      <section className="dashboard-content-grid">
+        <div className="dashboard-panel" id="progress"><div className="dashboard-section-title"><div><div className="eyebrow muted">YOUR ACTIVITY</div><h2>Progress so far</h2></div><BarChart3 size={19}/></div>
+          {progress ? <div className="progress-metrics"><div><strong>{attempts.length}</strong><span>recent practice sessions</span></div><div><strong>{totalAnswered}</strong><span>questions answered</span></div><div><strong>{averageScore===null?'—':`${averageScore}%`}</strong><span>accuracy in recent sessions</span></div></div> : <p className="dashboard-muted">Your practice activity will appear here when you complete a question set.</p>}
+          {attempts.length>0&&<div className="dashboard-last-session"><span><Clock3 size={17}/></span><div><b>Last practice session</b><small>{new Date(attempts[0].createdAt || attempts[0].completedAt).toLocaleDateString(undefined,{month:'short',day:'numeric'})} · {attempts[0].score} of {attempts[0].total} correct</small></div><Link to="/learn?type=practice" aria-label="Continue practising"><ArrowRight size={17}/></Link></div>}
+          <Link to="/learn?type=practice" className="dashboard-panel-link">{attempts.length?'Practise again':'Start your first practice set'} <ArrowRight size={15}/></Link>
+        </div>
+        <div className="dashboard-panel"><div className="dashboard-section-title"><div><div className="eyebrow muted">PICK UP AGAIN</div><h2>Recently opened notes</h2></div><Link to="/learn?type=note">All notes <ArrowRight size={15}/></Link></div>
+          {recentNotes.length ? <div className="dashboard-recent-list">{recentNotes.slice(0,3).map(file=><Link key={file.path} to={`/learn?type=note&subject=${encodeURIComponent(file.subjectSlug||'')}&q=${encodeURIComponent(file.topic||'')}`}><span className="recent-file-icon"><FileText size={18}/></span><span><b>{file.name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ')}</b><small>{file.subject}{file.topic?` · ${file.topic}`:''}</small></span><ArrowRight size={16}/></Link>)}</div> : <p className="dashboard-muted">Notes you open will appear here so you can find them again quickly.</p>}
+        </div>
+      </section>
+      <section className="dashboard-lower-grid">
+        <div className="dashboard-panel"><div className="dashboard-section-title"><div><div className="eyebrow muted">YOUR CURRICULUM</div><h2>Browse by subject</h2></div><Link to="/learn?type=note">See all notes <ArrowRight size={15}/></Link></div>
+          {subjectsData.length ? <div className="dashboard-subject-list">{subjectsData.slice(0,6).map((item,index)=>{const meta=subjects.find(subject=>subject.name===item.title);const Icon=meta?.icon||BookOpen;return <Link key={item._id||item.slug} to={`/learn?type=note&subject=${encodeURIComponent(item.slug||item.title)}`}><span className={`subject-icon ${meta?.color||'blue'}`}><Icon size={18}/></span><b>{item.title}</b><span>{String(index+1).padStart(2,'0')}</span><ArrowRight size={15}/></Link>;})}</div> : <p className="dashboard-muted">Published subjects will appear here when they are available.</p>}
+        </div>
+        <div className="dashboard-panel dashboard-resource-panel"><div className="dashboard-section-title"><div><div className="eyebrow muted">STUDY MATERIALS</div><h2>Available study notes</h2></div></div>
+          {resources.length ? <div className="dashboard-resource-list">{resources.slice(0,3).map(item=><Link key={item.path} to={`/learn?type=note&subject=${encodeURIComponent(item.subjectSlug)}`}><span className="recent-file-icon"><BookOpen size={18}/></span><span><b>{item.name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ')}</b><small>{item.subject}{item.topic?` · ${item.topic}`:''}</small></span><ArrowRight size={16}/></Link>)}</div> : <p className="dashboard-muted">Browse the notes library to see available course files, or use the Nyani past-paper library.</p>}
+        </div>
+      </section>
+      <section className="dashboard-coming-soon"><span><Sparkles size={19}/></span><div><b>Quick Lessons</b><p>This feature is not available yet. For a short study session, try a practice set or create an AI quiz from your notes.</p></div><Link to="/learn?type=practice">Try practice <ArrowRight size={15}/></Link></section>
+      <nav className="dashboard-mobile-nav" aria-label="Quick navigation">{links.slice(0,4).map(({label,href,icon:Icon,active})=><NavLink key={label} to={href} end={active}><Icon size={19}/><span>{label==='Practice questions'?'Practice':label==='AI study quiz'?'AI quiz':label}</span></NavLink>)}<NavLink to="/nyani"><FileText size={19}/><span>Past papers</span></NavLink></nav>
+    </section>
+  </main>;
 }
 
 function Auth({ mode, onLogin }) {
@@ -298,10 +387,12 @@ function NotesLibrary({user}) {
   const [loadingNotes,setLoadingNotes]=useState(false);
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
-  const [query,setQuery]=useState('');
+  const [searchParams]=useSearchParams();
+  const [query,setQuery]=useState(()=>searchParams.get('q')||'');
   const [retryKind,setRetryKind]=useState('');
   const [subjectsRetry,setSubjectsRetry]=useState(0);
   const [notesRetry,setNotesRetry]=useState(0);
+  const requestedSubject=searchParams.get('subject');
 
   useEffect(()=>{
     let live=true;
@@ -309,27 +400,27 @@ function NotesLibrary({user}) {
     setError('');
     setRetryKind('');
     api.get('/subjects')
-      .then(({data})=>{if(live)setAvailableSubjects(data);})
+      .then(({data})=>{if(live){setAvailableSubjects(data);if(requestedSubject){const match=data.find(item=>item.slug?.toLowerCase()===requestedSubject.toLowerCase()||item.title?.toLowerCase()===requestedSubject.toLowerCase());if(match)setSelectedSubject(match);}}})
       .catch(e=>{if(live){setError(e.response?.data?.message||'Unable to load subjects. Please try again.');setRetryKind('subjects');}})
       .finally(()=>{if(live)setLoadingSubjects(false);});
     return()=>{live=false;};
-  },[subjectsRetry]);
+  },[subjectsRetry,requestedSubject]);
 
   useEffect(()=>{
-    if(!selectedSubject)return;
+    if(!selectedSubject&&!query.trim()){setNoteGroups([]);setLoadingNotes(false);return;}
     let live=true;
     setLoadingNotes(true);
     setError('');
     setRetryKind('');
     setNoteGroups([]);
-    api.get('/notes',{params:{subject:selectedSubject.slug,q:query.trim()||undefined}})
+    api.get('/notes',{params:{subject:selectedSubject?.slug,q:query.trim()||undefined}})
       .then(({data})=>{if(live)setNoteGroups(data||[]);})
       .catch(e=>{if(live){setError(e.response?.data?.message||'Unable to load notes. Please try again.');setRetryKind('notes');}})
       .finally(()=>{if(live)setLoadingNotes(false);});
     return()=>{live=false;};
   },[selectedSubject,query,notesRetry]);
 
-  const openStorageNote=async file=>{
+  const openStorageNote=async (file,subjectContext=selectedSubject)=>{
     setError('');
     setNotice('');
     const officeFile=officeDocument(file.name);
@@ -353,13 +444,14 @@ function NotesLibrary({user}) {
       }
       if(popup)popup.location=url;
       else window.location.assign(url);
+      rememberNote(file,subjectContext);
     }catch(e){
       popup?.close();
       setError(e.response?.data?.message||e.message||'Could not open this note online.');
     }
   };
 
-  const downloadStorageNote=async file=>{
+  const downloadStorageNote=async (file,subjectContext=selectedSubject)=>{
     setError('');
     setNotice('');
     try{
@@ -371,6 +463,7 @@ function NotesLibrary({user}) {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      rememberNote(file,subjectContext);
       setNotice('Download started. Open the file from your Downloads to choose an installed app.');
     }catch(e){
       setError(e.response?.data?.message||'Could not download this note.');
@@ -382,6 +475,7 @@ function NotesLibrary({user}) {
   return <main className="workspace">
     <aside className="side-nav">
       <small>YOUR SPACE</small>
+      <NavLink to="/dashboard"><LayoutDashboard size={17}/> Dashboard</NavLink>
       {sections.map(section=>section.slug==='high-yield'
         ? <NavLink key={section.slug} to="/nyani"><section.icon size={17}/>Nyani library</NavLink>
         : <Link key={section.slug} to={`/learn?type=${section.slug}`} className={section.slug==='note'?'active':''}><section.icon size={17}/>{section.small}</Link>)}
@@ -389,10 +483,16 @@ function NotesLibrary({user}) {
       <div className="side-user"><span className="user-avatar">{user.name?.slice(0,1).toUpperCase()}</span><span><b>{user.name}</b><small>Student</small></span></div>
     </aside>
     <section className="workspace-main learn-main">
-      <div className="learn-heading"><div className="eyebrow muted">A GOOD PLACE TO BEGIN</div><h1>{selectedSubject?`${selectedSubject.title} notes`:'Notes library'}<i>.</i></h1><p>{selectedSubject?'Choose a file to view online or download.':'Choose a subject to explore its study notes.'}</p></div>
+      <div className="learn-heading"><div className="eyebrow muted">A GOOD PLACE TO BEGIN</div><h1>{selectedSubject?`${selectedSubject.title} notes`:'Notes library'}<i>.</i></h1><p>{query.trim()&&!selectedSubject?'Search results across your notes library.':selectedSubject?'Choose a file to view online or download.':'Choose a subject to explore its study notes.'}</p></div>
       {notice&&<div className="success-message" role="status">{notice}</div>}
       {error&&<ErrorNotice message={error} onRetry={retryKind==='subjects'?()=>setSubjectsRetry(value=>value+1):retryKind==='notes'?()=>setNotesRetry(value=>value+1):undefined}/>}
-      {!selectedSubject
+      {query.trim()&&!selectedSubject&&<div className="notes-subject-toolbar"><button className="button-outline" onClick={()=>{setQuery('');setNoteGroups([]);}}><ArrowLeft size={14}/> Browse subjects</button><label><Search size={15}/><input aria-label="Search all notes" placeholder="Search note titles or topics" value={query} onChange={event=>setQuery(event.target.value)}/></label></div>}
+      {query.trim()&&!selectedSubject
+        ? loadingSubjects||loadingNotes?<div className="content-skeleton"><i/><i/><i/></div>
+          : retryKind==='notes'?null
+          : noteGroups.length?<div className="note-subject-list">{noteGroups.map(group=><section className="note-subject" key={group.slug}><div className="dash-section-head"><div><div className="eyebrow muted">{group.title.toUpperCase()} · SEARCH RESULTS</div><h2>{group.title} <i>notes</i></h2></div><span>{group.files.length} FILES</span></div><div className="note-file-grid">{group.files.map(file=><article className="material-card note-file-card" key={file.path}><div className="material-card-top"><span className="material-type">{file.contentType?.includes('pdf')||/\.pdf$/i.test(file.name)?'PDF NOTE':'STUDY FILE'}</span><span className="note-topic">{file.topic}</span></div><h3>{file.name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ')}</h3><p>{file.path}</p><div className="note-actions"><button className="button-outline" onClick={()=>openStorageNote(file,{title:group.title,slug:group.slug})}>View online</button><button className="button-primary" onClick={()=>downloadStorageNote(file,{title:group.title,slug:group.slug})}>Download</button></div></article>)}</div></section>)}</div>
+          : <div className="empty-state"><div className="empty-spark">✳</div><div><b>No notes match “{query}”.</b><span>Try a different subject or search term, or browse all notes.</span></div><button className="button-outline" onClick={()=>setQuery('')}>Browse subjects <ArrowRight size={18}/></button></div>
+        : !selectedSubject
         ? loadingSubjects?<div className="content-skeleton"><i/><i/><i/></div>
           : retryKind==='subjects'?null:availableSubjects.length
             ? <div className="notes-subject-picker">{availableSubjects.map(item=>{
@@ -418,7 +518,7 @@ function NotesLibrary({user}) {
                   <p>{file.path}</p>
                   <div className="note-actions"><button className="button-outline" onClick={()=>openStorageNote(file)}>View online</button><button className="button-primary" onClick={()=>downloadStorageNote(file)}>Download</button></div>
                 </article>)}</div>
-              : <div className="empty-state"><div className="empty-spark">✳</div><div><b>No notes found for {selectedSubject.title} yet.</b><span>Try another subject, or practice questions while notes are being added.</span></div><button className="button-outline" onClick={()=>{setSelectedSubject(null);setNoteGroups([]);setError('');setQuery('');}}>Browse subjects <ArrowRight size={18}/></button><Link className="button-outline" to="/learn?type=practice">Practice questions <ArrowRight size={18}/></Link></div>}
+              : <div className="empty-state"><div className="empty-spark">✳</div><div><b>{query.trim()?`No notes match “${query}” in ${selectedSubject.title}.`:`No notes found for ${selectedSubject.title} yet.`}</b><span>{query.trim()?'Try a different search term.':'Try another subject, or practice questions while notes are being added.'}</span></div><button className="button-outline" onClick={()=>{setSelectedSubject(null);setNoteGroups([]);setError('');setQuery('');}}>Browse subjects <ArrowRight size={18}/></button><Link className="button-outline" to="/learn?type=practice">Practice questions <ArrowRight size={18}/></Link></div>}
         </>}
     </section>
   </main>;

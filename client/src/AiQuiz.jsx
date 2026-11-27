@@ -82,7 +82,9 @@ export default function AiQuiz({user}) {
   const totalAnswers=MAX_QUESTIONS+MAX_SHORT_ANSWERS;
   return <main className="workspace">
     <aside className="side-nav">
+      <Link className="side-brand" to="/dashboard">yaza<span>med</span></Link>
       <small>YOUR SPACE</small>
+      <NavLink to="/dashboard"><BookOpen size={17}/> Dashboard</NavLink>
       <NavLink to="/learn?type=note"><BookOpen size={17}/> Notes</NavLink>
       <NavLink to="/learn?type=ai-quiz" className="side-active"><Sparkles size={17}/> Yaza Med AI quiz</NavLink>
       <NavLink to="/learn?type=practice"><Brain size={17}/> Practice</NavLink>
